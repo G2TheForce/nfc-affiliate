@@ -1,0 +1,196 @@
+openapi: 3.1.0
+info:
+  title: NFC Affiliates API
+  version: 1.0.0-phase1
+  description: |
+    Phase 1 endpoints. Web app: Sanctum session cookie plus X-XSRF-TOKEN.
+    API clients: send `device_name` to login or register and use the returned bearer token.
+    All errors are JSON. Validation errors return 422 with `message` and `errors`.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+    session: { type: apiKey, in: cookie, name: laravel_session }
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, description: Public ULID }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: [string, 'null'], example: '+9779812345678' }
+        email_verified: { type: boolean }
+        status: { type: string, enum: [active, disabled] }
+        roles: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+        is_staff: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+    AuthResult:
+      type: object
+      properties:
+        token: { type: string, description: Only when device_name was sent }
+        token_type: { type: string, example: Bearer }
+        user: { $ref: '#/components/schemas/User' }
+    Message:
+      type: object
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+    AuditLog:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string }
+        actor: { type: [object, 'null'], properties: { id: { type: string }, name: { type: string } } }
+        subject_type: { type: [string, 'null'] }
+        subject_id: { type: [string, 'null'] }
+        properties: { type: [object, 'null'], description: Secret-looking keys are redacted }
+        created_at: { type: string, format: date-time }
+  responses:
+    Unauthenticated: { description: Not signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+    Forbidden: { description: 'Missing permission, disabled account or unverified email', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+    Invalid: { description: Validation failed, content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+    TooMany: { description: Rate limited }
+paths:
+  /auth/register:
+    post:
+      summary: Create a customer account and sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation, accept_privacy_notice]
+              properties:
+                name: { type: string, maxLength: 120 }
+                email: { type: string, format: email }
+                phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+                password: { type: string, minLength: 12 }
+                password_confirmation: { type: string }
+                accept_privacy_notice: { type: boolean, const: true }
+                device_name: { type: string, description: Send to receive a bearer token }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /auth/login:
+    post:
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device_name: { type: string }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /auth/logout:
+    post:
+      summary: Sign out (deletes the current token or ends the session)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /auth/me:
+    get:
+      summary: Current user
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/User' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /auth/forgot-password:
+    post:
+      summary: Email a reset link (same answer whether or not the account exists)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /auth/reset-password:
+    post:
+      summary: Set a new password with the emailed token (signs out all API tokens)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, password, password_confirmation]
+              properties:
+                token: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 12 }
+                password_confirmation: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /auth/verify-email/{user}/{hash}:
+    get:
+      summary: Signed link from the verification email
+      parameters:
+        - { name: user, in: path, required: true, schema: { type: string }, description: Public ULID }
+        - { name: hash, in: path, required: true, schema: { type: string } }
+        - { name: expires, in: query, required: true, schema: { type: integer } }
+        - { name: signature, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Verified (JSON clients) }
+        '302': { description: "Verified; redirects to the web app's /email-verified page" }
+        '403': { description: 'Invalid, tampered or expired link' }
+  /auth/email/verification-notification:
+    post:
+      summary: Send a new verification link
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: Already verified }
+        '202': { description: Link queued }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /admin/ping:
+    get:
+      summary: Staff access check (requires admin.access and a verified email)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/audit-logs:
+    get:
+      summary: Audit log (requires audit_logs.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: subject_type, in: query, schema: { type: string } }
+        - { name: subject_id, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Paginated entries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AuditLog' } }
+                  links: { type: object }
+                  meta: { type: object }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }

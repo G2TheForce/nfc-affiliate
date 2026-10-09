@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+@source '../**/*.blade.php';
+@source '../js/**/*.{ts,tsx}';
+
+/* Design tokens. Components use these names, never raw hex values. */
+@theme {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+
+    --color-brand-50: #eef6ff;
+    --color-brand-100: #d9eaff;
+    --color-brand-500: #2563eb;
+    --color-brand-600: #1d4ed8;
+    --color-brand-700: #1e40af;
+    --color-ink: #0f172a;
+    --color-muted: #475569;
+    --color-surface: #ffffff;
+    --color-canvas: #f8fafc;
+    --color-line: #e2e8f0;
+    --color-success: #15803d;
+    --color-warning: #b45309;
+    --color-danger: #b91c1c;
+}
+
+@layer base {
+    :focus-visible {
+        outline: 2px solid var(--color-brand-500);
+        outline-offset: 2px;
+    }
+}
