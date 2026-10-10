@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase1
+  version: 1.0.0-phase2
   description: |
     Phase 1 endpoints. Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
@@ -53,6 +53,36 @@ components:
         subject_id: { type: [string, 'null'] }
         properties: { type: [object, 'null'], description: Secret-looking keys are redacted }
         created_at: { type: string, format: date-time }
+    AffiliateDetails:
+      type: object
+      properties:
+        display_name: { type: string, maxLength: 120 }
+        country_code: { type: string, minLength: 2, maxLength: 2, example: NP }
+        city: { type: [string, 'null'] }
+        address_line: { type: [string, 'null'] }
+        promotion_channels:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [website, facebook, instagram, tiktok, youtube, whatsapp, viber, telegram, email, offline, other] }
+        website_urls: { type: array, maxItems: 5, items: { type: string, format: uri } }
+        audience_description: { type: [string, 'null'], maxLength: 2000 }
+    AffiliateProfile:
+      allOf:
+        - $ref: '#/components/schemas/AffiliateDetails'
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [pending, approved, rejected, suspended, deactivated] }
+            status_label: { type: string }
+            referral_code: { type: [string, 'null'] }
+            referral_slug: { type: [string, 'null'] }
+            applied_at: { type: [string, 'null'], format: date-time }
+            approved_at: { type: [string, 'null'], format: date-time }
+            can_reapply_at: { type: [string, 'null'], format: date-time }
+            needs_terms_acceptance: { type: boolean }
+            current_terms_version: { type: [string, 'null'] }
+            history: { type: array, items: { type: object, properties: { status: { type: string }, status_label: { type: string }, reason: { type: [string, 'null'] }, at: { type: string } } } }
+            terms_accepted: { type: array, items: { type: object, properties: { version: { type: string }, accepted_at: { type: string } } } }
   responses:
     Unauthenticated: { description: Not signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
     Forbidden: { description: 'Missing permission, disabled account or unverified email', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
@@ -194,3 +224,178 @@ paths:
                   meta: { type: object }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /notifications:
+    get:
+      summary: The signed-in user's in-app notifications (20 per page, newest first)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data[] with id, title, body, link, read, created_at; meta.unread' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /notifications/{id}/read:
+    post:
+      summary: Mark one of your own notifications as read (another user's id returns 404)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+  /notifications/read-all:
+    post:
+      summary: Mark all your notifications as read
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK }
+  /affiliate/terms/current:
+    get:
+      summary: Current published affiliate terms (data is null when none are published)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { version, title, body, published_at } or null' }
+  /affiliate/terms/accept:
+    post:
+      summary: Accept the current terms version (approved members after a terms change)
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [terms_version, accept_terms]
+              properties:
+                terms_version: { type: string }
+                accept_terms: { type: boolean, const: true }
+      responses:
+        '200': { description: Updated profile, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AffiliateProfile' } } } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /affiliate/applications:
+    post:
+      summary: Apply to the affiliate programme, or re-apply after a rejection and the cooldown
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AffiliateDetails'
+                - type: object
+                  required: [terms_version, accept_terms]
+                  properties:
+                    terms_version: { type: string, description: The version shown to the applicant; must be the current one }
+                    accept_terms: { type: boolean, const: true }
+      responses:
+        '201': { description: Pending application, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AffiliateProfile' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /affiliate/profile:
+    get:
+      summary: Your own affiliate profile (data is null before applying). Never contains internal notes.
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AffiliateProfile' } } } } } }
+    patch:
+      summary: Update your non-sensitive profile fields (pending, approved or suspended)
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/AffiliateDetails' } } }
+      responses:
+        '200': { description: OK }
+        '404': { description: No application yet }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /affiliate/profile/close:
+    post:
+      summary: Close your own approved membership (requires your password)
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+                reason: { type: string, maxLength: 1000 }
+      responses:
+        '200': { description: Deactivated profile }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /admin/affiliates:
+    get:
+      summary: List affiliates, pending first (affiliates.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected, suspended, deactivated] } }
+        - { name: search, in: query, schema: { type: string }, description: 'Name, email or exact referral code' }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: per_page, in: query, schema: { type: integer, maximum: 100 } }
+      responses:
+        '200': { description: Paginated list }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/affiliates/counts:
+    get:
+      summary: Number of affiliates per status (affiliates.view)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { pending, approved, rejected, suspended, deactivated }' }
+  /admin/affiliates/{affiliate}:
+    get:
+      summary: Staff detail with history, internal notes and possible duplicates (affiliates.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: affiliate, in: path, required: true, schema: { type: string }, description: Public ULID }]
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+  /admin/affiliates/{affiliate}/{action}:
+    post:
+      summary: 'Membership action. approve/reject need affiliates.review; suspend/reinstate/deactivate/reactivate need affiliates.suspend. reason is required except for approve.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: affiliate, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [approve, reject, suspend, reinstate, deactivate, reactivate] } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 1000, description: Shown to the member }
+                internal_note: { type: string, maxLength: 5000, description: Staff only }
+      responses:
+        '200': { description: Updated staff detail }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Validation failed or the action is not allowed from the current status }
+  /admin/affiliates/{affiliate}/notes:
+    post:
+      summary: Add a staff-only note (affiliates.review)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: affiliate, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 5000 } } } } }
+      responses:
+        '200': { description: Updated staff detail }
+  /admin/terms:
+    get:
+      summary: All published terms versions (affiliates.view)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Publish a new, immutable terms version (settings.manage)
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, title, body]
+              properties:
+                version: { type: string, pattern: '^[A-Za-z0-9._-]+$' }
+                title: { type: string }
+                body: { type: string, minLength: 50 }
+      responses:
+        '201': { description: Published }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }

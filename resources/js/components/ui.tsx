@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import { useId } from 'react';
 
@@ -86,6 +87,71 @@ export function Spinner() {
     return (
         <div role="status" className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
             Loading…
+        </div>
+    );
+}
+
+export function TextArea({
+    label,
+    error,
+    hint,
+    ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; error?: string; hint?: string }) {
+    const id = useId();
+    return (
+        <div className="space-y-1">
+            <label htmlFor={id} className="block text-sm font-medium text-ink">
+                {label}
+            </label>
+            <textarea
+                id={id}
+                rows={3}
+                {...props}
+                aria-invalid={!!error}
+                aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+                className={`block w-full rounded-lg border bg-surface px-3 py-2 text-base text-ink shadow-sm sm:text-sm ${error ? 'border-danger' : 'border-line'}`}
+            />
+            {hint && !error && (
+                <p id={`${id}-hint`} className="text-xs text-muted">
+                    {hint}
+                </p>
+            )}
+            {error && (
+                <p id={`${id}-error`} className="text-sm text-danger">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+const STATUS_STYLES: Record<string, string> = {
+    pending: 'bg-warning/10 text-warning',
+    approved: 'bg-success/10 text-success',
+    rejected: 'bg-danger/10 text-danger',
+    suspended: 'bg-danger/10 text-danger',
+    deactivated: 'bg-line text-muted',
+};
+
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
+    return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[status] ?? 'bg-line text-muted'}`}>
+            {label ?? status}
+        </span>
+    );
+}
+
+export function Modal({ title, open, onClose, children }: { title: string; open: boolean; onClose: () => void; children: ReactNode }) {
+    if (!open) return null;
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-4"
+            onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        >
+            <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-lg rounded-t-2xl bg-surface p-6 shadow-xl sm:rounded-2xl">
+                <h2 className="text-lg font-semibold text-ink">{title}</h2>
+                <div className="mt-4">{children}</div>
+            </div>
         </div>
     );
 }

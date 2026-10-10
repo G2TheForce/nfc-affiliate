@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router';
+import { useUnreadCount } from '@/lib/unread';
 import { useAuth } from '@/auth/AuthContext';
 
 export interface NavItem {
@@ -12,8 +13,9 @@ export interface NavItem {
  * Shared shell for the affiliate/customer area and the staff area. The nav
  * only reflects permissions for convenience; the API enforces them.
  */
-export function AppLayout({ area, nav }: { area: string; nav: NavItem[] }) {
+export function AppLayout({ area, nav, notificationsPath }: { area: string; nav: NavItem[]; notificationsPath: string }) {
     const { user, logout, can } = useAuth();
+    const unread = useUnreadCount();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const items = nav.filter((item) => !item.permission || can(item.permission));
@@ -54,6 +56,15 @@ export function AppLayout({ area, nav }: { area: string; nav: NavItem[] }) {
                         <span className="font-bold text-brand-700">{area}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
+                        <Link to={notificationsPath} className="relative rounded-lg px-2 py-1.5 font-medium text-muted hover:bg-canvas hover:text-ink">
+                            Notifications
+                            {unread > 0 && (
+                                <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-bold text-white">
+                                    {unread}
+                                    <span className="sr-only"> unread</span>
+                                </span>
+                            )}
+                        </Link>
                         <span className="hidden text-muted sm:inline">{user?.name}</span>
                         <button type="button" onClick={onLogout} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-canvas">
                             Log out

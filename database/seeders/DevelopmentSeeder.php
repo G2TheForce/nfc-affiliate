@@ -2,7 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AffiliateStatus;
 use App\Enums\Role;
+use App\Models\AffiliateProfile;
+use App\Models\AffiliateTermsVersion;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -31,6 +34,35 @@ class DevelopmentSeeder extends Seeder
             );
             $user->forceFill(['email_verified_at' => now()])->save();
             $user->syncRoles([$role->value]);
+        }
+
+        $terms = AffiliateTermsVersion::firstOrCreate(['version' => 'dev-1'], [
+            'title' => '[DEV] Affiliate programme terms',
+            'body' => "[DEVELOPMENT PLACEHOLDER - NOT LEGAL TEXT]\n\nReplace these with terms reviewed by a qualified Nepal lawyer before launch.",
+            'published_at' => now(),
+        ]);
+
+        // Sample applicants in different states, all @dev.invalid.
+        foreach ([
+            ['pending', AffiliateStatus::Pending, 'Pending Blogger'],
+            ['approved', AffiliateStatus::Approved, 'Approved Creator'],
+            ['rejected', AffiliateStatus::Rejected, 'Rejected Applicant'],
+        ] as [$key, $status, $name]) {
+            $user = User::firstOrCreate(
+                ['email' => "applicant-{$key}@dev.invalid"],
+                ['name' => "[DEV] {$name}", 'password' => 'DevPassword123', 'phone' => '+9779800000000'],
+            );
+            $user->forceFill(['email_verified_at' => now()])->save();
+            $user->syncRoles($status === AffiliateStatus::Approved ? [Role::Customer->value, Role::Affiliate->value] : [Role::Customer->value]);
+
+            if (! $user->affiliateProfile) {
+                $profile = AffiliateProfile::factory()->forUser($user)->status($status)->create(['display_name' => "[DEV] {$name}"]);
+                $profile->statusHistory()->create(['to_status' => AffiliateStatus::Pending, 'actor_id' => $user->id]);
+                if ($status !== AffiliateStatus::Pending) {
+                    $profile->statusHistory()->create(['from_status' => AffiliateStatus::Pending, 'to_status' => $status, 'public_reason' => $status === AffiliateStatus::Rejected ? '[DEV] Sample rejection reason.' : null]);
+                }
+                $profile->termsAcceptances()->create(['terms_version_id' => $terms->id, 'accepted_at' => now()]);
+            }
         }
 
         $this->command?->warn('Development users created with password DevPassword123 (local use only).');

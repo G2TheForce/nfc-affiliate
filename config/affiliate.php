@@ -30,6 +30,12 @@ return [
         'coupon_overrides_click' => true,
     ],
 
+    'applications' => [
+        // A rejected applicant may apply again after this many days.
+        'reapply_cooldown_days' => (int) env('AFFILIATE_REAPPLY_COOLDOWN_DAYS', 30),
+        'referral_code_length' => 8,
+    ],
+
     'commissions' => [
         'holding_period_days' => (int) env('AFFILIATE_HOLDING_PERIOD_DAYS', 14),
         'include_shipping' => false,

@@ -2,7 +2,7 @@
 
 Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmandu): affiliate onboarding, referral tracking, commission accounting, payouts, dashboards and reports.
 
-**Status: Phase 1 (Foundation) complete.** Authentication, roles and permissions, admin bootstrap, audit logging and the web app shell are built and tested. Affiliate onboarding, referral tracking, commissions and payouts are not built yet. See [docs/phase-1-report.md](docs/phase-1-report.md).
+**Status: Phase 2 (Affiliate onboarding) complete.** Authentication, roles, audit logging, affiliate applications, staff review, suspension and reactivation, terms versions and notifications are built and tested. Referral tracking, commissions and payouts are not built yet. See [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
 
 ## Stack
 
