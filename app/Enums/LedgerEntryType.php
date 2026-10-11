@@ -10,6 +10,9 @@ enum LedgerEntryType: string
     case RefundReversal = 'refund_reversal';
     case Void = 'void';
     case Adjustment = 'adjustment';
+    case PayoutReserve = 'payout_reserve';
+    case PayoutRelease = 'payout_release';
+    case PayoutPaid = 'payout_paid';
 
     public function label(): string
     {
@@ -20,6 +23,9 @@ enum LedgerEntryType: string
             self::RefundReversal => 'Reversed after a refund',
             self::Void => 'Voided by staff',
             self::Adjustment => 'Manual adjustment',
+            self::PayoutReserve => 'Reserved for a payout request',
+            self::PayoutRelease => 'Returned from a payout that did not go ahead',
+            self::PayoutPaid => 'Paid out',
         };
     }
 }

@@ -17,7 +17,7 @@ use InvalidArgumentException;
 class CommissionLedger
 {
     /**
-     * @param  array{commission_id?: ?int, commission_adjustment_id?: ?int, refund_id?: ?int}  $refs
+     * @param  array{commission_id?: ?int, commission_adjustment_id?: ?int, refund_id?: ?int, payout_id?: ?int}  $refs
      * @return bool false when an entry with this key already exists
      */
     public function post(
@@ -43,6 +43,7 @@ class CommissionLedger
             'commission_id' => $refs['commission_id'] ?? null,
             'commission_adjustment_id' => $refs['commission_adjustment_id'] ?? null,
             'refund_id' => $refs['refund_id'] ?? null,
+            'payout_id' => $refs['payout_id'] ?? null,
             'type' => $type->value,
             'from_bucket' => $from?->value,
             'to_bucket' => $to?->value,

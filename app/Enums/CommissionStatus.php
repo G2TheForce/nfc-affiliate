@@ -15,7 +15,7 @@ enum CommissionStatus: string
     case Approved = 'approved';
     // Released to the affiliate's available balance.
     case Available = 'available';
-    // Included in a completed payout (Phase 5).
+    // Included in a completed payout.
     case Paid = 'paid';
     // Fully reversed by refunds or voided by staff.
     case Reversed = 'reversed';

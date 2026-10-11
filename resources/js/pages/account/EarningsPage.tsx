@@ -58,13 +58,13 @@ export default function EarningsPage() {
         <div className="space-y-6">
             <h1 className="text-2xl font-semibold text-ink">Earnings</h1>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat label="Available" value={formatMoney(b.available, c)} hint="Ready for a payout request" />
+                <Stat label="Available" value={formatMoney(b.available, c)} hint="Ready for a payout request on the Payouts page" />
                 <Stat
                     label="Pending"
                     value={formatMoney(b.pending + b.approved, c)}
                     hint={summary.next_eligible_at ? `Next available ${formatDate(summary.next_eligible_at)}` : `Held for ${summary.holding_period_days} days after payment`}
                 />
-                <Stat label="Paid out" value={formatMoney(b.paid, c)} />
+                <Stat label="Paid out" value={formatMoney(b.paid, c)} hint={b.reserved > 0 ? `${formatMoney(b.reserved, c)} in a payout request` : undefined} />
                 <Stat label="Reversed" value={formatMoney(b.reversed, c)} hint="Refunded or cancelled sales" />
             </div>
             {b.available < 0 && (

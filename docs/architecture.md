@@ -68,6 +68,14 @@ Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`,
 - Scheduler: `affiliate:mature-commissions` hourly, `affiliate:reconcile-commissions` daily at 03:30 Nepal time.
 - Full decision record: [ADR 0008](adr/0008-commission-accounting.md).
 
+## Payouts (Phase 5)
+
+- `PayoutService` runs the payout lifecycle: request (reserves the whole available balance), cancel, approve, reject, mark paid (with a transfer reference unique per method), and mark failed. Each step locks the payout row and posts an idempotent payout-level ledger entry.
+- `PayoutMethodService` saves encrypted payout details (bank, eSewa or Khalti), behind a password check. It sends a security notice; screens show a masked form only.
+- No payout provider is integrated. Finance makes the transfer outside the system and confirms it with its reference.
+- `ReconciliationService` also checks payout entries, paid commissions and each affiliate's available balance.
+- Full decision record: [ADR 0009](adr/0009-payouts.md).
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -89,6 +97,7 @@ Validation errors use Laravel's standard shape:
 | `store` (catalog, quote, referral) | 60/min per IP |
 | `checkout` (place order) | 10/min per IP |
 | on-demand reconciliation | 6/min per user |
+| payout request, payout details change | 6/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
 ## Security headers

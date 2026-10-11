@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase4
+  version: 1.0.0-phase5
   description: |
-    Phases 1-3. Money is integer minor units (paisa) with a currency code.
+    Phases 1-5. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
     All errors are JSON. Validation errors return 422 with `message` and `errors`.
@@ -171,7 +171,7 @@ components:
     LedgerEntry:
       type: object
       properties:
-        type: { type: string, enum: [accrual, approval, release, refund_reversal, void, adjustment] }
+        type: { type: string, enum: [accrual, approval, release, refund_reversal, void, adjustment, payout_reserve, payout_release, payout_paid] }
         label: { type: string }
         from_bucket: { type: [string, 'null'] }
         to_bucket: { type: [string, 'null'] }
@@ -179,7 +179,41 @@ components:
         currency: { type: string }
         commission_id: { type: [string, 'null'] }
         adjustment_id: { type: [string, 'null'] }
+        payout_id: { type: [string, 'null'] }
         created_at: { type: string, format: date-time }
+    Payout:
+      type: object
+      description: Affiliate view. Destination is masked (bank or wallet name and last four digits).
+      properties:
+        id: { type: string }
+        amount_minor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [requested, approved, paid, rejected, failed, cancelled] }
+        status_label: { type: string }
+        method_type: { type: string, enum: [bank_transfer, esewa, khalti] }
+        destination: { type: string }
+        requested_at: { type: string, format: date-time }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        paid_at: { type: [string, 'null'], format: date-time }
+        payment_reference: { type: [string, 'null'] }
+        reason: { type: [string, 'null'], description: Rejection or failure reason }
+        commission_count: { type: integer }
+        can_cancel: { type: boolean }
+    StaffPayout:
+      allOf:
+        - $ref: '#/components/schemas/Payout'
+        - type: object
+          properties:
+            affiliate: { type: object }
+            account_name: { type: string }
+            review_note: { type: [string, 'null'] }
+            failure_reason: { type: [string, 'null'] }
+            reviewed_by: { type: [string, 'null'] }
+            paid_by: { type: [string, 'null'] }
+            can_review: { type: boolean }
+            can_reject: { type: boolean }
+            can_mark_paid: { type: boolean }
+            can_mark_failed: { type: boolean }
     CommissionRule:
       type: object
       properties:
@@ -1041,3 +1075,83 @@ paths:
       security: [{ bearer: [] }, { session: [] }]
       responses:
         '200': { description: 'data: { default, products[], notes[] }' }
+  /affiliate/payouts/summary:
+    get:
+      summary: Own available, reserved and paid balances, minimum, masked payout details, the open payout and whether a request is possible (affiliate.portal)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { available_minor, reserved_minor, paid_minor, minimum_minor, method, open_payout, can_request, blocker }' }
+  /affiliate/payouts:
+    get:
+      summary: Own payouts, newest first (affiliate.portal)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'Paginated Payout' }
+    post:
+      summary: 'Request the whole available balance (affiliate.payouts.request, 6/min). Needs an active membership, saved payout details, no open payout and at least the minimum (NPR 1,000). Reserves the funds.'
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '201': { description: Payout }
+        '422': { description: 'errors.payout explains why not' }
+  /affiliate/payouts/{payout}/cancel:
+    post:
+      summary: Cancel own request before finance reviews it; funds return to available (affiliate.payouts.request)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: payout, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Payout }
+        '404': { description: Not your payout }
+        '422': { description: Already reviewed }
+  /affiliate/payout-method:
+    put:
+      summary: 'Save where payouts are sent (affiliate.payouts.request, 6/min). Needs the account password. Details are stored encrypted; responses show a masked form; an email notice is sent.'
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, account_name, password]
+              properties:
+                type: { type: string, enum: [bank_transfer, esewa, khalti] }
+                account_name: { type: string }
+                bank_name: { type: string, description: Required for bank_transfer }
+                branch: { type: [string, 'null'] }
+                account_number: { type: string, pattern: '^[A-Za-z0-9-]{6,30}$', description: Required for bank_transfer }
+                wallet_id: { type: string, pattern: '^9[678][0-9]{8}$', description: Required for esewa and khalti }
+                password: { type: string, format: password }
+      responses:
+        '200': { description: 'data: { type, type_label, account_name, masked, updated_at }' }
+  /admin/payouts:
+    get:
+      summary: Payouts, open requests first, oldest first (payouts.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [requested, approved, paid, rejected, failed, cancelled] } }
+        - { name: affiliate_id, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 'Paginated StaffPayout' }
+  /admin/payouts/summary:
+    get:
+      summary: Count and amount per status (payouts.view)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { by_status, minimum_minor, require_separate_payer }' }
+  /admin/payouts/{payout}:
+    get:
+      summary: 'StaffPayout with covered commissions and ledger entries. destination_details (full account number) only for payouts.mark_paid while approved; each view is audited.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: payout, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: 'data: StaffPayout + destination_details, commissions[], ledger[]' }
+  /admin/payouts/{payout}/{action}:
+    post:
+      summary: 'approve (note?) and reject (note) need payouts.review; mark-paid (reference) and mark-failed (reason) need payouts.mark_paid. Reject and mark-failed return the funds. A transfer reference is unique per method.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: payout, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [approve, reject, mark-paid, mark-failed] } }
+      responses:
+        '200': { description: StaffPayout }
+        '422': { description: 'Wrong state (already reviewed or paid), affiliate not active, reused reference, or same person as approver when separate payer is required' }

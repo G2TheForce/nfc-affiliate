@@ -2,7 +2,7 @@
 
 Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmandu): affiliate onboarding, referral tracking, commission accounting, payouts, dashboards and reports.
 
-**Status: Phase 4 (Commission accounting) complete.** Built and tested so far:
+**Status: Phase 5 (Payouts) complete.** Built and tested so far:
 
 - Authentication, roles and audit logging.
 - Affiliate onboarding: applications, staff review, suspension, terms versions and notifications.
@@ -13,8 +13,13 @@ Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmand
   - commission rules with precedence, and commission calculation
   - an append-only ledger with balances, holds and adjustments
   - nightly reconciliation
+- Payouts:
+  - encrypted payout details (bank, eSewa, Khalti)
+  - affiliate payout requests that reserve the available balance
+  - finance approval, and manual transfer confirmation with a unique reference
+  - rejected and failed payouts return the funds
 
-Payouts are not built yet (Phase 5), and payment gateways are not connected yet (Phase 7). See [docs/phase-4-report.md](docs/phase-4-report.md), [docs/phase-3-report.md](docs/phase-3-report.md), [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
+Payment gateways and payout providers are not connected yet (Phase 7); payments and payouts are confirmed by staff. See [docs/phase-5-report.md](docs/phase-5-report.md), [docs/phase-4-report.md](docs/phase-4-report.md), [docs/phase-3-report.md](docs/phase-3-report.md), [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
 
 ## Stack
 

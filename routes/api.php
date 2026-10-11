@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
 use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
+use App\Http\Controllers\Api\V1\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Api\V1\Admin\PingController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralR
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
 use App\Http\Controllers\Api\V1\Affiliate\EarningsController;
+use App\Http\Controllers\Api\V1\Affiliate\PayoutController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralLinkController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
@@ -97,6 +99,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('earnings/commissions', [EarningsController::class, 'commissions'])->name('earnings.commissions');
                 Route::get('earnings/ledger', [EarningsController::class, 'ledger'])->name('earnings.ledger');
                 Route::get('earnings/rates', [EarningsController::class, 'rates'])->name('earnings.rates');
+                Route::get('payouts/summary', [PayoutController::class, 'summary'])->name('payouts.summary');
+                Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+            });
+
+            Route::middleware('permission:'.Permission::AffiliatePayoutsRequest->value)->group(function () {
+                Route::post('payouts', [PayoutController::class, 'store'])->middleware('throttle:6,1')->name('payouts.store');
+                Route::post('payouts/{payout}/cancel', [PayoutController::class, 'cancel'])->whereUlid('payout')->name('payouts.cancel');
+                Route::put('payout-method', [PayoutController::class, 'saveMethod'])->middleware('throttle:6,1')->name('payout-method.update');
             });
         });
 
@@ -177,6 +187,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('adjustments', [AdjustmentController::class, 'store'])->middleware('permission:'.Permission::CommissionsAdjust->value)->name('adjustments.store');
                 Route::post('adjustments/{adjustment}/approve', [AdjustmentController::class, 'approve'])->middleware($approve)->name('adjustments.approve');
                 Route::post('adjustments/{adjustment}/reject', [AdjustmentController::class, 'reject'])->middleware($approve)->name('adjustments.reject');
+
+                Route::prefix('payouts')->name('payouts.')->group(function () {
+                    $view = 'permission:'.Permission::PayoutsView->value;
+                    $review = 'permission:'.Permission::PayoutsReview->value;
+                    $pay = 'permission:'.Permission::PayoutsMarkPaid->value;
+
+                    Route::get('/', [AdminPayoutController::class, 'index'])->middleware($view)->name('index');
+                    Route::get('summary', [AdminPayoutController::class, 'summary'])->middleware($view)->name('summary');
+                    Route::get('{payout}', [AdminPayoutController::class, 'show'])->whereUlid('payout')->middleware($view)->name('show');
+                    Route::post('{payout}/approve', [AdminPayoutController::class, 'approve'])->whereUlid('payout')->middleware($review)->name('approve');
+                    Route::post('{payout}/reject', [AdminPayoutController::class, 'reject'])->whereUlid('payout')->middleware($review)->name('reject');
+                    Route::post('{payout}/mark-paid', [AdminPayoutController::class, 'markPaid'])->whereUlid('payout')->middleware($pay)->name('mark-paid');
+                    Route::post('{payout}/mark-failed', [AdminPayoutController::class, 'markFailed'])->whereUlid('payout')->middleware($pay)->name('mark-failed');
+                });
 
                 Route::get('reconciliation', [ReconciliationController::class, 'index'])->middleware('permission:'.Permission::ReconciliationView->value)->name('reconciliation.index');
                 Route::post('reconciliation', [ReconciliationController::class, 'store'])->middleware(['permission:'.Permission::ReconciliationView->value, 'throttle:6,1'])->name('reconciliation.store');

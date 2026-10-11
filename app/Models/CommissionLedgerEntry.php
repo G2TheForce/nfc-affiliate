@@ -17,7 +17,7 @@ class CommissionLedgerEntry extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['id', 'affiliate_profile_id', 'commission_id', 'commission_adjustment_id', 'refund_id', 'actor_id'];
+    protected $hidden = ['id', 'affiliate_profile_id', 'commission_id', 'commission_adjustment_id', 'refund_id', 'payout_id', 'actor_id'];
 
     protected static function booted(): void
     {
@@ -54,5 +54,10 @@ class CommissionLedgerEntry extends Model
     public function refund(): BelongsTo
     {
         return $this->belongsTo(Refund::class);
+    }
+
+    public function payout(): BelongsTo
+    {
+        return $this->belongsTo(Payout::class);
     }
 }

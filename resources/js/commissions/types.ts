@@ -38,6 +38,7 @@ export interface LedgerEntry {
     currency: string;
     commission_id: string | null;
     adjustment_id: string | null;
+    payout_id?: string | null;
     created_at: string;
 }
 
