@@ -76,6 +76,17 @@ Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`,
 - `ReconciliationService` also checks payout entries, paid commissions and each affiliate's available balance.
 - Full decision record: [ADR 0009](adr/0009-payouts.md).
 
+## Dashboards and reports (Phase 6)
+
+- `Metrics` computes every dashboard figure with grouped SQL; `Period` handles Nepal-time ranges and chart buckets.
+- Endpoints: `GET /affiliate/dashboard`, `GET /admin/dashboard`, `GET /admin/finance/dashboard` and `GET /admin/dashboard/filter-options`.
+- Reports are classes under `App\Domain\Reporting\Reports`, listed by `ReportRegistry`. Each one declares its columns, its permission and its filters, and yields rows.
+  - Staff reports: `/admin/reports` (list), `/admin/reports/{key}` (first 100 rows) and `/admin/reports/{key}/export?format=csv|xlsx`.
+  - Affiliate reports: `/affiliate/reports` and `/affiliate/reports/{key}/export`.
+- `ReportExporter` streams CSV or XLSX, guards against formula injection and writes money in rupees. Every export is audited.
+- Screens: `/account/affiliate/dashboard`, `/admin` (dashboard), `/admin/finance` and `/admin/reports`.
+- Full decision record: [ADR 0010](adr/0010-reporting.md).
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -98,6 +109,7 @@ Validation errors use Laravel's standard shape:
 | `checkout` (place order) | 10/min per IP |
 | on-demand reconciliation | 6/min per user |
 | payout request, payout details change | 6/min per user |
+| `exports` (report CSV/XLSX) | 10/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
 ## Security headers
