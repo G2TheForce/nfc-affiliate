@@ -5,7 +5,7 @@ namespace App\Domain\Payments\Gateways;
 use App\Models\Order;
 use App\Models\PaymentAttempt;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\HttpClientException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Validation\ValidationException;
 
@@ -58,7 +58,7 @@ class KhaltiGateway extends ConfiguredGateway
                 'purchase_order_name' => "Order {$order->order_number}",
                 'customer_info' => ['name' => $order->customer_name, 'email' => $order->customer_email, 'phone' => $order->customer_phone],
             ]);
-        } catch (ConnectionException $e) {
+        } catch (HttpClientException $e) {
             throw new GatewayUnavailable('Khalti could not be reached: '.$e->getMessage(), 0, $e);
         }
 
@@ -95,7 +95,7 @@ class KhaltiGateway extends ConfiguredGateway
     {
         try {
             $response = $this->api()->post($this->url('lookup/'), ['pidx' => $attempt->provider_reference]);
-        } catch (ConnectionException $e) {
+        } catch (HttpClientException $e) {
             throw new GatewayUnavailable('Khalti could not be reached: '.$e->getMessage(), 0, $e);
         }
 

@@ -26,10 +26,16 @@ export interface AdminOrder {
     paid_at: string | null;
     cancelled_at: string | null;
     cancel_reason?: string | null;
+    fulfilment_status: 'unfulfilled' | 'processing' | 'shipped' | 'delivered';
+    fulfilment_label: string;
+    fulfilment?: { processing_at: string | null; shipped_at: string | null; carrier: string | null; tracking_number: string | null; delivered_at: string | null };
+    payment_attempts?: PaymentAttempt[];
+    disputes?: OrderDispute[];
     items?: AdminOrderItem[];
     payment?: {
         id: string;
         provider: string;
+        verified_by: 'staff' | 'provider';
         method: string;
         method_label: string;
         reference: string;
@@ -62,6 +68,45 @@ export interface AdminOrder {
         reason: string | null;
     };
 }
+
+export interface PaymentAttempt {
+    id: string;
+    order?: { id: string; order_number: string };
+    provider: string;
+    provider_reference: string | null;
+    provider_transaction_id: string | null;
+    amount_minor: number;
+    currency: string;
+    status: 'initiated' | 'pending' | 'completed' | 'failed' | 'needs_review';
+    status_label: string;
+    provider_status: string | null;
+    review_reason: string | null;
+    reviewed_by?: string | null;
+    reviewed_at: string | null;
+    review_note: string | null;
+    check_count: number;
+    last_checked_at: string | null;
+    next_check_at: string | null;
+    completed_at: string | null;
+    created_at: string;
+}
+
+export interface OrderDispute {
+    id: string;
+    reference: string;
+    amount_minor: number;
+    reason: string;
+    status: 'open' | 'won' | 'lost';
+    status_label: string;
+    opened_by: string | null;
+    opened_at: string | null;
+    resolved_by: string | null;
+    resolved_at: string | null;
+    resolution_note: string | null;
+    held_commissions: number;
+}
+
+export const PROVIDER_LABELS: Record<string, string> = { esewa: 'eSewa', khalti: 'Khalti' };
 
 export const BLOCK_REASONS: Record<string, string> = {
     self_referral: 'Self-referral (buyer is the affiliate)',

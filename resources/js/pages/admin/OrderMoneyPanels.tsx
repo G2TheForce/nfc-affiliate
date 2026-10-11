@@ -95,7 +95,8 @@ export function OrderMoneyPanels({ order, onChange }: { order: AdminOrder; onCha
                             <div>
                                 <dt className="inline text-muted">Confirmed: </dt>
                                 <dd className="inline">
-                                    {formatDateTime(order.payment.confirmed_at)} by {order.payment.confirmed_by}
+                                    {formatDateTime(order.payment.confirmed_at)}{' '}
+                                    {order.payment.verified_by === 'provider' ? `by ${order.payment.method_label}'s status check` : `by ${order.payment.confirmed_by}`}
                                 </dd>
                             </div>
                             {order.payment.note && <p className="text-muted">{order.payment.note}</p>}

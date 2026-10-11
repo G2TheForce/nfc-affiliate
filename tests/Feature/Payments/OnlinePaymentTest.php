@@ -13,8 +13,11 @@ use App\Models\PaymentAttempt;
 use App\Models\WebhookEvent;
 use App\Notifications\Finance\PaymentNeedsReview;
 use App\Notifications\Store\OrderPaymentReceived;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -266,6 +269,13 @@ class OnlinePaymentTest extends TestCase
         $this->assertSame(1, $attempt->check_count);
         $this->assertTrue($attempt->next_check_at->isFuture());
         $this->assertSame('pending_payment', $order->refresh()->status->value);
+
+        // A proxy or firewall refusing the connection surfaces as a request error, not a timeout.
+        $this->travel(20)->minutes();
+        $this->esewaReply = fn () => throw new RequestException(new Response(new Psr7Response(403)));
+        $this->get('/payments/esewa/return?data='.urlencode($this->esewaCallback($attempt)))
+            ->assertRedirect("/order-confirmed?order={$order->public_id}&payment=pending");
+        $this->assertSame(PaymentAttemptStatus::Initiated, $attempt->refresh()->status);
     }
 
     public function test_a_late_failure_does_not_undo_a_payment_and_abandoned_attempts_expire(): void

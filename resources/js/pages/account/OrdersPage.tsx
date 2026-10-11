@@ -46,6 +46,14 @@ export default function OrdersPage() {
                         ))}
                     </ul>
                     <p className="mt-2 text-sm font-semibold text-ink">Total {formatMoney(o.total_minor, o.currency)}</p>
+                    {o.fulfilment_status && o.fulfilment_status !== 'unfulfilled' && (
+                        <p className="mt-1 text-sm text-muted">
+                            {o.fulfilment_label}
+                            {o.carrier && ` with ${o.carrier}`}
+                            {o.tracking_number && `, tracking number ${o.tracking_number}`}
+                            {o.delivered_at ? ` on ${formatDateTime(o.delivered_at)}` : o.shipped_at ? ` on ${formatDateTime(o.shipped_at)}` : ''}
+                        </p>
+                    )}
                 </Card>
             ))}
         </div>

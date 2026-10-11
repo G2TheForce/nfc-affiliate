@@ -4,7 +4,7 @@ namespace App\Domain\Payments\Gateways;
 
 use App\Models\Order;
 use App\Models\PaymentAttempt;
-use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\HttpClientException;
 
 /**
  * eSewa ePay v2. The customer's browser posts a signed form to eSewa; eSewa
@@ -94,7 +94,7 @@ class EsewaGateway extends ConfiguredGateway
                 'total_amount' => self::amount($attempt->amount_minor),
                 'transaction_uuid' => $attempt->provider_reference,
             ]);
-        } catch (ConnectionException $e) {
+        } catch (HttpClientException $e) {
             throw new GatewayUnavailable('eSewa could not be reached: '.$e->getMessage(), 0, $e);
         }
 

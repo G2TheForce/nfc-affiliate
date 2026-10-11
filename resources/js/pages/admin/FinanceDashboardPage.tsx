@@ -8,6 +8,7 @@ import { DataTable } from '@/reporting/DataTable';
 import { rangeLabel } from '@/reporting/period';
 import type { Balances, Definitions, PayoutQueue, PeriodInfo } from '@/reporting/types';
 import { useApiData } from '@/reporting/useApiData';
+import { PROVIDER_LABELS, type PaymentAttempt } from './orderTypes';
 
 interface FinanceDashboard {
     period: PeriodInfo;
@@ -34,6 +35,29 @@ const FLOW_ROWS: [string, string, 1 | -1][] = [
     ['payout_returned_minor', 'Returned from rejected or cancelled payouts', 1],
     ['paid_out_minor', 'Paid out', 1],
 ];
+
+/** Online payments the system could not settle by itself (amount mismatch, double payment, provider refund, stuck pending). */
+function PaymentsToReview() {
+    const { data } = useApiData<PaymentAttempt[]>('/admin/payment-attempts?filter=review');
+    if (!data || data.length === 0) return null;
+    return (
+        <Alert tone="error">
+            <p className="font-semibold">
+                {data.length === 30 ? 'At least 30' : data.length} online payment{data.length === 1 ? ' needs' : 's need'} a look
+            </p>
+            <ul className="mt-1 space-y-1">
+                {data.slice(0, 5).map((a) => (
+                    <li key={a.id}>
+                        <Link to={`/admin/orders/${a.order?.id}`} className="font-semibold underline">
+                            {a.order?.order_number}
+                        </Link>{' '}
+                        ({PROVIDER_LABELS[a.provider] ?? a.provider}, {formatMoney(a.amount_minor, a.currency)}): {a.review_reason}
+                    </li>
+                ))}
+            </ul>
+        </Alert>
+    );
+}
 
 export default function FinanceDashboardPage() {
     const { can } = useAuth();
@@ -70,6 +94,8 @@ export default function FinanceDashboardPage() {
                     before paying anyone.
                 </Alert>
             )}
+
+            {can('payments.confirm') && can('orders.view') && <PaymentsToReview />}
 
             <section aria-labelledby="owed-heading">
                 <h2 id="owed-heading" className="mb-2 text-sm font-semibold text-muted">
