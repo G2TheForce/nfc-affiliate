@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase3
+  version: 1.0.0-phase4
   description: |
     Phases 1-3. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
@@ -106,7 +106,7 @@ components:
       properties:
         id: { type: string }
         order_number: { type: string, example: NFC-261011-7KQ2MX }
-        status: { type: string, enum: [pending_payment, paid, cancelled, refunded] }
+        status: { type: string, enum: [pending_payment, paid, partially_refunded, cancelled, refunded] }
         status_label: { type: string }
         currency: { type: string }
         subtotal_minor: { type: integer }
@@ -137,6 +137,87 @@ components:
         cancelled_orders: { type: integer }
         order_value_minor: { type: integer, description: Subtotal minus discount of placed orders }
         conversion_rate: { type: [number, 'null'], description: Orders per 100 unique clicks }
+    Balances:
+      type: object
+      description: Sums over ledger entries, in minor units. Available can be negative (a recoverable balance after a refund of paid commission).
+      properties:
+        pending: { type: integer }
+        approved: { type: integer }
+        available: { type: integer }
+        reserved: { type: integer }
+        paid: { type: integer }
+        reversed: { type: integer }
+    Commission:
+      type: object
+      description: Affiliate view masks the order number. The staff view adds order_id, affiliate, rule and hold_reason, and shows the full order number.
+      properties:
+        id: { type: string }
+        order_number: { type: string }
+        product_name: { type: string }
+        sku: { type: string }
+        quantity: { type: integer }
+        kind: { type: string, enum: [percent, fixed] }
+        rate_bp: { type: [integer, 'null'] }
+        fixed_minor: { type: [integer, 'null'] }
+        base_minor: { type: integer, description: Line total after discounts }
+        amount_minor: { type: integer, description: Amount at creation }
+        reversed_minor: { type: integer }
+        net_minor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [pending, approved, available, paid, reversed] }
+        partially_reversed: { type: boolean }
+        on_hold: { type: boolean }
+        eligible_at: { type: string, format: date-time }
+    LedgerEntry:
+      type: object
+      properties:
+        type: { type: string, enum: [accrual, approval, release, refund_reversal, void, adjustment] }
+        label: { type: string }
+        from_bucket: { type: [string, 'null'] }
+        to_bucket: { type: [string, 'null'] }
+        amount_minor: { type: integer, minimum: 1 }
+        currency: { type: string }
+        commission_id: { type: [string, 'null'] }
+        adjustment_id: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+    CommissionRule:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        scope: { type: string, enum: [global, plan, category, product, affiliate] }
+        target: { type: [object, 'null'], description: 'id is the plan, product or affiliate public id, or the category slug' }
+        kind: { type: string, enum: [percent, fixed, exclude] }
+        rate_bp: { type: [integer, 'null'] }
+        fixed_minor: { type: [integer, 'null'] }
+        currency: { type: [string, 'null'] }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: [string, 'null'], format: date-time }
+        is_active: { type: boolean }
+        version: { type: integer }
+    Adjustment:
+      type: object
+      properties:
+        id: { type: string }
+        affiliate: { type: object }
+        commission_id: { type: [string, 'null'] }
+        amount_minor: { type: integer, description: Signed }
+        reason: { type: string }
+        status: { type: string, enum: [pending_approval, approved, rejected] }
+        created_by: { type: [string, 'null'] }
+        can_decide: { type: boolean, description: False for the proposer }
+        decided_by: { type: [string, 'null'] }
+    ReconciliationRun:
+      type: object
+      properties:
+        id: { type: string }
+        result: { type: string, enum: [clean, drift] }
+        commissions_checked: { type: integer }
+        affiliates_checked: { type: integer }
+        entries_checked: { type: integer }
+        issues: { type: array, items: { type: object } }
+        triggered_by: { type: string }
+        finished_at: { type: string, format: date-time }
   responses:
     Unauthenticated: { description: Not signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
     Forbidden: { description: 'Missing permission, disabled account or unverified email', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
@@ -692,7 +773,7 @@ paths:
       summary: Orders with masked customer contact (orders.view); attribution filters need attribution.view
       security: [{ bearer: [] }, { session: [] }]
       parameters:
-        - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, cancelled, refunded] } }
+        - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, partially_refunded, cancelled, refunded] } }
         - { name: attribution, in: query, schema: { type: string, enum: [attributed, none, blocked] } }
         - { name: affiliate_id, in: query, schema: { type: string } }
         - { name: search, in: query, schema: { type: string }, description: Exact order number or full email }
@@ -700,7 +781,7 @@ paths:
         '200': { description: Paginated }
   /admin/orders/{order}:
     get:
-      summary: Order detail with items and, with attribution.view, the attribution and click details (orders.view)
+      summary: Order detail with items, payment and refunds; attribution with attribution.view; commissions with commissions.view (orders.view)
       security: [{ bearer: [] }, { session: [] }]
       parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
       responses:
@@ -736,3 +817,227 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date } }
       responses:
         '200': { description: 'data: totals (ReferralTotals), top_affiliates[]' }
+  /admin/orders/{order}/payments:
+    post:
+      summary: Confirm a payment staff have verified, with its reference; marks the order paid and creates commission (payments.confirm, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, reference, amount_minor]
+              properties:
+                method: { type: string, enum: [bank_transfer, cash_on_delivery, esewa, khalti, fonepay, other] }
+                reference: { type: string, maxLength: 100 }
+                amount_minor: { type: integer, description: Must equal the order total }
+                note: { type: [string, 'null'] }
+      responses:
+        '201': { description: Recorded; order detail }
+        '200': { description: Same reference already recorded for this order; nothing changed }
+        '422': { description: 'Amount differs from the total, order cancelled or already paid, or reference used elsewhere' }
+  /admin/orders/{order}/refunds:
+    post:
+      summary: Record a completed refund by line; reverses only the refunded share of commission (refunds.record, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reference, reason]
+              properties:
+                reference: { type: string, maxLength: 100 }
+                reason: { type: string }
+                items: { type: array, items: { type: object, required: [item_id, amount_minor], properties: { item_id: { type: string }, amount_minor: { type: integer, minimum: 1 } } } }
+                shipping_minor: { type: integer, minimum: 0 }
+      responses:
+        '201': { description: 'Recorded; order detail plus meta.commission_reversed_minor' }
+        '200': { description: Same reference already recorded for this order; nothing changed }
+        '422': { description: 'Order not paid, line not in the order, or amount above what is left' }
+  /admin/commission-rules:
+    get:
+      summary: Rules in precedence order (commission_rules.manage or commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [global, plan, category, product, affiliate] } }
+        - { name: active, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: 'data: CommissionRule[]' }
+    post:
+      summary: Create a rule; overlapping active rules for the same target are refused (commission_rules.manage, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scope, kind, starts_at]
+              properties:
+                name: { type: string }
+                scope: { type: string, enum: [global, plan, category, product, affiliate] }
+                target_id: { type: [string, 'null'] }
+                kind: { type: string, enum: [percent, fixed, exclude] }
+                rate_bp: { type: integer, minimum: 1, description: Up to AFFILIATE_COMMISSION_MAX_RATE_BP (5000) }
+                fixed_minor: { type: integer, minimum: 1 }
+                starts_at: { type: string, format: date-time }
+                ends_at: { type: [string, 'null'], format: date-time }
+                is_active: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /admin/commission-rules/{rule}:
+    patch:
+      summary: Change name, kind, rate, dates or active flag; bumps the version (commission_rules.manage, audited). Scope and target cannot change.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: rule, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Updated }
+  /admin/commission-rules/preview:
+    get:
+      summary: The rule that would apply today to an affiliate selling a product, and the commission on one unit
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: affiliate_id, in: query, required: true, schema: { type: string } }
+        - { name: product_id, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 'data: { rule, unit_price_minor, commission_per_unit_minor, currency }' }
+  /admin/commission-plans:
+    get:
+      summary: Plans with affiliate counts
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create a plan (commission_rules.manage)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '201': { description: Created }
+  /admin/affiliates/{affiliate}/plan:
+    post:
+      summary: Put an affiliate on a plan, or null for the global default (commission_rules.manage, reason required, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: affiliate, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK }
+  /admin/affiliates/{affiliate}/ledger:
+    get:
+      summary: An affiliate's balances and latest ledger entries (commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: affiliate, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: 'data: LedgerEntry[], balances: Balances' }
+  /admin/commissions:
+    get:
+      summary: Commissions, staff view (commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, available, paid, reversed] } }
+        - { name: affiliate_id, in: query, schema: { type: string } }
+        - { name: on_hold, in: query, schema: { type: boolean } }
+        - { name: order, in: query, schema: { type: string }, description: Exact order number }
+      responses:
+        '200': { description: 'Paginated Commission (staff view)' }
+  /admin/commissions/summary:
+    get:
+      summary: Programme liability by bucket (commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { balances: Balances, on_hold_minor, auto_release, holding_period_days }' }
+  /admin/commissions/{commission}:
+    get:
+      summary: One commission with its calculation snapshot and ledger entries (commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: commission, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK }
+  /admin/commissions/{commission}/{action}:
+    post:
+      summary: 'hold (reason), release-hold (note) and void (reason) need fraud.review; release needs commissions.approve. All audited.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: commission, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [hold, release-hold, void, release] } }
+      responses:
+        '200': { description: Updated commission }
+        '422': { description: Not allowed from the current state }
+  /admin/adjustments:
+    get:
+      summary: Adjustments (commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: status, in: query, schema: { type: string, enum: [pending_approval, approved, rejected] } }]
+      responses:
+        '200': { description: 'Paginated Adjustment' }
+    post:
+      summary: Propose a signed adjustment (commissions.adjust). Nothing reaches the ledger until someone else approves it.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [affiliate_id, amount_minor, reason]
+              properties:
+                affiliate_id: { type: string }
+                commission_id: { type: [string, 'null'] }
+                amount_minor: { type: integer, description: 'Non-zero; negative deducts' }
+                reason: { type: string, minLength: 10 }
+      responses:
+        '201': { description: Proposed }
+  /admin/adjustments/{adjustment}/approve:
+    post:
+      summary: Approve and post to the ledger (commissions.approve; not the proposer)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: adjustment, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Approved }
+        '422': { description: 'Proposer cannot approve, or already decided' }
+  /admin/adjustments/{adjustment}/reject:
+    post:
+      summary: Reject with a note (commissions.approve)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: adjustment, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Rejected }
+  /admin/reconciliation:
+    get:
+      summary: Reconciliation runs, newest first (reconciliation.view)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'Paginated ReconciliationRun' }
+    post:
+      summary: Run a check now; read-only (reconciliation.view, 6/min)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '201': { description: ReconciliationRun }
+  /affiliate/earnings/summary:
+    get:
+      summary: Own balances, counts by status and the next date commission becomes available (affiliate.portal)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { balances: Balances, counts, on_hold_count, holding_period_days, next_eligible_at }' }
+  /affiliate/earnings/commissions:
+    get:
+      summary: Own commissions, affiliate view (affiliate.portal)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: status, in: query, schema: { type: string, enum: [pending, approved, available, paid, reversed] } }]
+      responses:
+        '200': { description: 'Paginated Commission' }
+  /affiliate/earnings/ledger:
+    get:
+      summary: Own ledger statement (affiliate.portal)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'Paginated LedgerEntry' }
+  /affiliate/earnings/rates:
+    get:
+      summary: Rates that apply today, per active product (approved members only)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { default, products[], notes[] }' }

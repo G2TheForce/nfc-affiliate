@@ -3,10 +3,15 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { StoreLayout } from '@/layouts/StoreLayout';
 import AccountHomePage from '@/pages/account/AccountHomePage';
 import AffiliatePage from '@/pages/account/AffiliatePage';
+import EarningsPage from '@/pages/account/EarningsPage';
 import CustomerOrdersPage from '@/pages/account/OrdersPage';
 import ReferralLinksPage from '@/pages/account/ReferralLinksPage';
 import ReferralStatsPage from '@/pages/account/ReferralStatsPage';
+import AdjustmentsPage from '@/pages/admin/AdjustmentsPage';
+import CommissionRulesPage from '@/pages/admin/CommissionRulesPage';
+import CommissionsPage from '@/pages/admin/CommissionsPage';
 import CouponsPage from '@/pages/admin/CouponsPage';
+import ReconciliationPage from '@/pages/admin/ReconciliationPage';
 import OrderDetailPage from '@/pages/admin/OrderDetailPage';
 import AdminOrdersPage from '@/pages/admin/OrdersPage';
 import ProductsPage from '@/pages/admin/ProductsPage';
@@ -62,6 +67,7 @@ export default function App() {
                                 { to: '/account/affiliate', label: 'Affiliate programme' },
                                 { to: '/account/affiliate/links', label: 'Referral links', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/referrals', label: 'Referral stats', permission: 'affiliate.portal' },
+                                { to: '/account/earnings', label: 'Earnings', permission: 'affiliate.portal' },
                                 { to: '/', label: 'Shop' },
                             ]}
                         />
@@ -73,6 +79,7 @@ export default function App() {
                 <Route path="affiliate" element={<AffiliatePage />} />
                 <Route path="affiliate/links" element={<ReferralLinksPage />} />
                 <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
+                <Route path="earnings" element={<EarningsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
@@ -87,6 +94,10 @@ export default function App() {
                                 { to: '/admin', label: 'Dashboard' },
                                 { to: '/admin/affiliates', label: 'Affiliates', permission: 'affiliates.view' },
                                 { to: '/admin/orders', label: 'Orders', permission: 'orders.view' },
+                                { to: '/admin/commissions', label: 'Commissions', permission: 'commissions.view' },
+                                { to: '/admin/adjustments', label: 'Adjustments', permission: 'commissions.view' },
+                                { to: '/admin/commission-rules', label: 'Commission rules', permission: ['commission_rules.manage', 'commissions.view'] },
+                                { to: '/admin/reconciliation', label: 'Reconciliation', permission: 'reconciliation.view' },
                                 { to: '/admin/referrals', label: 'Referral report', permission: 'reports.view' },
                                 { to: '/admin/coupons', label: 'Coupons', permission: 'campaigns.manage' },
                                 { to: '/admin/products', label: 'Products', permission: 'catalog.manage' },
@@ -105,6 +116,10 @@ export default function App() {
                 <Route path="orders" element={<AdminOrdersPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
                 <Route path="referrals" element={<ReferralsPage />} />
+                <Route path="commissions" element={<CommissionsPage />} />
+                <Route path="adjustments" element={<AdjustmentsPage />} />
+                <Route path="commission-rules" element={<CommissionRulesPage />} />
+                <Route path="reconciliation" element={<ReconciliationPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />

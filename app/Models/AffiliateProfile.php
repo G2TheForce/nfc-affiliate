@@ -31,7 +31,7 @@ class AffiliateProfile extends Model
         'audience_description',
     ];
 
-    protected $hidden = ['id', 'user_id', 'approved_by'];
+    protected $hidden = ['id', 'user_id', 'approved_by', 'commission_plan_id'];
 
     protected static function booted(): void
     {
@@ -100,5 +100,20 @@ class AffiliateProfile extends Model
     public function hasAcceptedTerms(AffiliateTermsVersion $version): bool
     {
         return $this->termsAcceptances()->where('terms_version_id', $version->id)->exists();
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(CommissionPlan::class, 'commission_plan_id');
+    }
+
+    public function commissions(): HasMany
+    {
+        return $this->hasMany(Commission::class);
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(CommissionLedgerEntry::class);
     }
 }

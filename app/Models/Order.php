@@ -36,7 +36,9 @@ class Order extends Model
             'discount_minor' => 'integer',
             'shipping_minor' => 'integer',
             'total_minor' => 'integer',
+            'refunded_minor' => 'integer',
             'placed_at' => 'datetime',
+            'paid_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
     }
@@ -69,5 +71,20 @@ class Order extends Model
     public function couponRedemption(): HasOne
     {
         return $this->hasOne(CouponRedemption::class);
+    }
+
+    public function payment(): HasOne
+    {
+        return $this->hasOne(OrderPayment::class);
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    public function commissions(): HasMany
+    {
+        return $this->hasMany(Commission::class);
     }
 }

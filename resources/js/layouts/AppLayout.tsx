@@ -6,7 +6,8 @@ import { useAuth } from '@/auth/AuthContext';
 export interface NavItem {
     to: string;
     label: string;
-    permission?: string;
+    /** Shown when the user has this permission, or any of a list. */
+    permission?: string | string[];
 }
 
 /**
@@ -18,7 +19,7 @@ export function AppLayout({ area, nav, notificationsPath }: { area: string; nav:
     const unread = useUnreadCount();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
-    const items = nav.filter((item) => !item.permission || can(item.permission));
+    const items = nav.filter((item) => !item.permission || [item.permission].flat().some((p) => can(p)));
 
     const onLogout = async () => {
         await logout();

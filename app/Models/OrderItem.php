@@ -4,12 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class OrderItem extends Model
 {
     protected $guarded = ['*'];
 
     protected $hidden = ['id', 'order_id', 'product_id', 'category_id'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (OrderItem $item) {
+            $item->public_id ??= (string) Str::ulid();
+        });
+    }
 
     protected function casts(): array
     {
@@ -30,5 +39,10 @@ class OrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function refundItems(): HasMany
+    {
+        return $this->hasMany(RefundItem::class);
     }
 }

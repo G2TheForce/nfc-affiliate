@@ -5,6 +5,7 @@ import { Alert, Button, Card, Modal, Select, Spinner, StatusBadge, TextArea } fr
 import { api, ApiError } from '@/lib/api';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { useFormErrors } from '@/lib/useFormErrors';
+import { OrderMoneyPanels } from './OrderMoneyPanels';
 import { BLOCK_REASONS, type AdminOrder } from './orderTypes';
 
 interface AffiliateOption {
@@ -75,10 +76,11 @@ export default function OrderDetailPage() {
                 <Card title="Order">
                     <ul className="divide-y divide-line text-sm">
                         {order.items?.map((i) => (
-                            <li key={i.sku} className="flex justify-between gap-2 py-2">
+                            <li key={i.id} className="flex justify-between gap-2 py-2">
                                 <span>
                                     {i.name} × {i.quantity}
                                     {i.discount_minor > 0 && <span className="block text-xs text-muted">discount {formatMoney(i.discount_minor, order.currency)}</span>}
+                                    {i.refunded_minor > 0 && <span className="block text-xs text-muted">refunded {formatMoney(i.refunded_minor, order.currency)}</span>}
                                 </span>
                                 <span className="tabular-nums">{formatMoney(i.line_total_minor, order.currency)}</span>
                             </li>
@@ -164,7 +166,7 @@ export default function OrderDetailPage() {
                         ) : (
                             <p className="text-sm text-muted">{a.block_reason ? BLOCK_REASONS[a.block_reason] ?? a.block_reason : 'No referral link, code or affiliate coupon was used.'}</p>
                         )}
-                        {can('attribution.manual') && !['cancelled', 'refunded'].includes(order.status) && (
+                        {can('attribution.manual') && !['cancelled', 'refunded', 'partially_refunded'].includes(order.status) && !order.commissions?.length && (
                             <Button variant="secondary" className="mt-4" onClick={openAttribute}>
                                 {a.affiliate ? 'Change affiliate' : 'Attribute manually'}
                             </Button>
@@ -172,6 +174,7 @@ export default function OrderDetailPage() {
                     </Card>
                 )}
             </div>
+            <OrderMoneyPanels order={order} onChange={setOrder} />
             <Modal title={dialog === 'cancel' ? 'Cancel order' : 'Attribute order manually'} open={dialog !== null} onClose={() => setDialog(null)}>
                 <form onSubmit={submit} className="space-y-3">
                     {message && <Alert tone="error">{message}</Alert>}

@@ -41,6 +41,7 @@ class AffiliateDetailResource extends JsonResource
                 'registered_at' => $this->user->created_at?->toIso8601String(),
             ],
             'referral_code' => $this->referral_code,
+            'commission_plan' => $this->plan ? ['id' => $this->plan->public_id, 'name' => $this->plan->name] : null,
             'referral_slug' => $this->referral_slug,
             'country_code' => $this->country_code,
             'city' => $this->city,

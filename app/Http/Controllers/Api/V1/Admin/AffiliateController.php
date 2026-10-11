@@ -112,7 +112,7 @@ class AffiliateController extends Controller
 
     private function detail(AffiliateProfile $affiliate): AffiliateDetailResource
     {
-        $affiliate->refresh()->load(['user', 'approver', 'statusHistory.actor', 'notes.author', 'termsAcceptances.termsVersion']);
+        $affiliate->refresh()->load(['user', 'approver', 'plan', 'statusHistory.actor', 'notes.author', 'termsAcceptances.termsVersion']);
 
         return new AffiliateDetailResource($affiliate, $this->duplicates->for($affiliate));
     }
