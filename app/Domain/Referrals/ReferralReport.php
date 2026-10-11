@@ -2,6 +2,7 @@
 
 namespace App\Domain\Referrals;
 
+use App\Domain\Reporting\Period;
 use App\Enums\OrderStatus;
 use App\Models\AffiliateLink;
 use App\Models\AffiliateProfile;
@@ -49,6 +50,20 @@ class ReferralReport
                 ->pluck('orders', 'source')
                 ->map(fn ($n) => (int) $n),
         ];
+    }
+
+    /**
+     * Clicks and click-attributed orders per referral link.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function linkPerformance(AffiliateProfile $profile, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return $this->byLink(
+            $profile,
+            $this->clicks($from, $to)->where('affiliate_profile_id', $profile->id),
+            $this->orders($from, $to)->where('order_attributions.affiliate_profile_id', $profile->id),
+        );
     }
 
     /**
@@ -139,24 +154,23 @@ class ReferralReport
      */
     private function daily(Builder $clicks, Builder $orders, CarbonImmutable $from, CarbonImmutable $to): array
     {
-        $tz = (string) config('affiliate.business_timezone');
+        $period = Period::between($from, $to);
         $days = [];
         foreach (CarbonPeriod::create($from->startOfDay(), $to->startOfDay()) as $day) {
             $days[$day->format('Y-m-d')] = ['date' => $day->format('Y-m-d'), 'clicks' => 0, 'orders' => 0];
         }
 
-        // Grouped in PHP so the business timezone is applied the same way on MySQL and SQLite.
-        foreach ($clicks->pluck('referral_clicks.created_at') as $at) {
-            $key = CarbonImmutable::parse($at, 'UTC')->setTimezone($tz)->format('Y-m-d');
-            if (isset($days[$key])) {
-                $days[$key]['clicks']++;
-            }
-        }
-        foreach ($orders->whereNot('orders.status', OrderStatus::Cancelled->value)->pluck('orders.placed_at') as $at) {
-            $key = CarbonImmutable::parse($at, 'UTC')->setTimezone($tz)->format('Y-m-d');
-            if (isset($days[$key])) {
-                $days[$key]['orders']++;
-            }
+        // Grouped in the database by local (business timezone) day.
+        $clickCounts = $clicks->toBase()
+            ->selectRaw($period->bucketSql('referral_clicks.created_at', 'day').' as day, COUNT(*) as n')
+            ->groupBy('day')->pluck('n', 'day');
+        $orderCounts = $orders->toBase()->whereNot('orders.status', OrderStatus::Cancelled->value)
+            ->selectRaw($period->bucketSql('orders.placed_at', 'day').' as day, COUNT(*) as n')
+            ->groupBy('day')->pluck('n', 'day');
+
+        foreach ($days as $key => $_) {
+            $days[$key]['clicks'] = (int) ($clickCounts[$key] ?? 0);
+            $days[$key]['orders'] = (int) ($orderCounts[$key] ?? 0);
         }
 
         return array_values($days);

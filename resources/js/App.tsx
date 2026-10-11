@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { AppLayout } from '@/layouts/AppLayout';
 import { StoreLayout } from '@/layouts/StoreLayout';
 import AccountHomePage from '@/pages/account/AccountHomePage';
+import AffiliateDashboardPage from '@/pages/account/AffiliateDashboardPage';
 import AffiliatePage from '@/pages/account/AffiliatePage';
 import EarningsPage from '@/pages/account/EarningsPage';
 import PayoutsPage from '@/pages/account/PayoutsPage';
@@ -10,6 +11,8 @@ import ReferralLinksPage from '@/pages/account/ReferralLinksPage';
 import ReferralStatsPage from '@/pages/account/ReferralStatsPage';
 import AdjustmentsPage from '@/pages/admin/AdjustmentsPage';
 import AdminPayoutsPage from '@/pages/admin/PayoutsPage';
+import FinanceDashboardPage from '@/pages/admin/FinanceDashboardPage';
+import ReportsPage from '@/pages/admin/ReportsPage';
 import CommissionRulesPage from '@/pages/admin/CommissionRulesPage';
 import CommissionsPage from '@/pages/admin/CommissionsPage';
 import CouponsPage from '@/pages/admin/CouponsPage';
@@ -67,6 +70,7 @@ export default function App() {
                                 { to: '/account', label: 'Overview' },
                                 { to: '/account/orders', label: 'My orders' },
                                 { to: '/account/affiliate', label: 'Affiliate programme' },
+                                { to: '/account/affiliate/dashboard', label: 'Affiliate dashboard', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/links', label: 'Referral links', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/referrals', label: 'Referral stats', permission: 'affiliate.portal' },
                                 { to: '/account/earnings', label: 'Earnings', permission: 'affiliate.portal' },
@@ -80,6 +84,7 @@ export default function App() {
                 <Route index element={<AccountHomePage />} />
                 <Route path="orders" element={<CustomerOrdersPage />} />
                 <Route path="affiliate" element={<AffiliatePage />} />
+                <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
                 <Route path="affiliate/links" element={<ReferralLinksPage />} />
                 <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
                 <Route path="earnings" element={<EarningsPage />} />
@@ -96,6 +101,8 @@ export default function App() {
                             notificationsPath="/admin/notifications"
                             nav={[
                                 { to: '/admin', label: 'Dashboard' },
+                                { to: '/admin/finance', label: 'Finance', permission: ['payouts.view', 'commissions.view'] },
+                                { to: '/admin/reports', label: 'Reports', permission: ['reports.view', 'commissions.view', 'payouts.view', 'affiliates.view', 'fraud.review'] },
                                 { to: '/admin/affiliates', label: 'Affiliates', permission: 'affiliates.view' },
                                 { to: '/admin/orders', label: 'Orders', permission: 'orders.view' },
                                 { to: '/admin/commissions', label: 'Commissions', permission: 'commissions.view' },
@@ -114,6 +121,8 @@ export default function App() {
                 }
             >
                 <Route index element={<AdminHomePage />} />
+                <Route path="finance" element={<FinanceDashboardPage />} />
+                <Route path="reports" element={<ReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogPage />} />
                 <Route path="affiliates" element={<AffiliatesListPage />} />
                 <Route path="affiliates/:id" element={<AffiliateDetailPage />} />

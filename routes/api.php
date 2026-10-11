@@ -8,18 +8,22 @@ use App\Http\Controllers\Api\V1\Admin\CommissionController;
 use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
 use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Api\V1\Admin\PingController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
 use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
+use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
+use App\Http\Controllers\Api\V1\Affiliate\DashboardController;
 use App\Http\Controllers\Api\V1\Affiliate\EarningsController;
 use App\Http\Controllers\Api\V1\Affiliate\PayoutController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralLinkController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralReportController;
+use App\Http\Controllers\Api\V1\Affiliate\ReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
@@ -99,6 +103,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('earnings/commissions', [EarningsController::class, 'commissions'])->name('earnings.commissions');
                 Route::get('earnings/ledger', [EarningsController::class, 'ledger'])->name('earnings.ledger');
                 Route::get('earnings/rates', [EarningsController::class, 'rates'])->name('earnings.rates');
+                Route::get('dashboard', DashboardController::class)->name('dashboard');
+                Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+                Route::get('reports/{report}/export', [ReportController::class, 'export'])
+                    ->where('report', '[a-z-]+')->middleware('throttle:exports')->name('reports.export');
                 Route::get('payouts/summary', [PayoutController::class, 'summary'])->name('payouts.summary');
                 Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
             });
@@ -204,6 +212,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
                 Route::get('reconciliation', [ReconciliationController::class, 'index'])->middleware('permission:'.Permission::ReconciliationView->value)->name('reconciliation.index');
                 Route::post('reconciliation', [ReconciliationController::class, 'store'])->middleware(['permission:'.Permission::ReconciliationView->value, 'throttle:6,1'])->name('reconciliation.store');
+
+                Route::get('dashboard', [AdminDashboardController::class, 'admin'])
+                    ->middleware('permission:'.Permission::ReportsView->value)->name('dashboard');
+                Route::get('dashboard/filter-options', [AdminDashboardController::class, 'filterOptions'])
+                    ->middleware('permission:'.Permission::ReportsView->value)->name('dashboard.filter-options');
+                Route::get('finance/dashboard', [AdminDashboardController::class, 'finance'])
+                    ->middleware('permission:'.Permission::PayoutsView->value.'|'.Permission::CommissionsView->value)->name('finance.dashboard');
+                Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
+                Route::get('reports/{report}', [AdminReportController::class, 'show'])->where('report', '[a-z-]+')->name('reports.show');
+                Route::get('reports/{report}/export', [AdminReportController::class, 'export'])
+                    ->where('report', '[a-z-]+')->middleware('throttle:exports')->name('reports.export');
 
                 Route::get('referrals/summary', [AdminReferralReportController::class, 'summary'])
                     ->middleware('permission:'.Permission::ReportsView->value)->name('referrals.summary');

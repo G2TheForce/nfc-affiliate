@@ -72,7 +72,7 @@ export default function OrderDetailPage() {
                 <h1 className="text-2xl font-semibold text-ink">{order.order_number}</h1>
                 <StatusBadge status={order.status} label={order.status_label} />
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card title="Order">
                     <ul className="divide-y divide-line text-sm">
                         {order.items?.map((i) => (

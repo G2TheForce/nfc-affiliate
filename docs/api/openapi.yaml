@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase5
+  version: 1.0.0-phase6
   description: |
-    Phases 1-5. Money is integer minor units (paisa) with a currency code.
+    Phases 1-6. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
     All errors are JSON. Validation errors return 422 with `message` and `errors`.
@@ -1155,3 +1155,98 @@ paths:
       responses:
         '200': { description: StaffPayout }
         '422': { description: 'Wrong state (already reviewed or paid), affiliate not active, reused reference, or same person as approver when separate payer is required' }
+  /affiliate/dashboard:
+    get:
+      summary: Own dashboard figures for a period (affiliate.portal). Always limited to the signed-in member.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+      responses:
+        '200': { description: 'data: { period, currency, totals, balances, series[], products[], campaigns[], links[], referral_code, definitions }' }
+        '422': { description: Bad or too long range }
+  /affiliate/reports:
+    get:
+      summary: Reports the member can export about themselves
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { reports: ReportInfo[] }' }
+  /affiliate/reports/{report}/export:
+    get:
+      summary: 'Stream own report as CSV or XLSX (10/min, audited). Keys: my-commissions, my-orders, my-payouts, my-statement.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: report, in: path, required: true, schema: { type: string } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [csv, xlsx] } }
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+      responses:
+        '200': { description: 'text/csv or XLSX attachment' }
+  /admin/dashboard:
+    get:
+      summary: 'Staff dashboard (reports.view). liabilities and refund_reversals_minor need commissions.view, payouts needs payouts.view, recent_events needs audit_logs.view.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+        - { name: affiliate_id, in: query, schema: { type: string }, description: Affiliate public id }
+        - { name: product_id, in: query, schema: { type: string }, description: Product public id }
+        - { name: coupon_id, in: query, schema: { type: string }, description: Coupon public id (campaign) }
+      responses:
+        '200': { description: 'data: { period, filters, currency, affiliates, totals, series[], top_affiliates[], top_products[], campaigns[], definitions, liabilities?, refund_reversals_minor?, payouts?, recent_events? }' }
+        '422': { description: Bad range or unknown filter id }
+  /admin/dashboard/filter-options:
+    get:
+      summary: Choices for the affiliate, product and coupon filters (reports.view). Affiliates are searched by name or referral code, 20 at most.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 60 } }
+        - { name: affiliate_id, in: query, schema: { type: string }, description: Keep this affiliate in the list }
+      responses:
+        '200': { description: 'data: { affiliates: Option[], products: Option[], coupons: Option[] } where Option is { id, label }' }
+  /admin/finance/dashboard:
+    get:
+      summary: 'Finance dashboard (payouts.view or commissions.view): balances, on-hold amount, ledger flows and series, payout queue, refunds, largest balances owed, last reconciliation (reconciliation.view).'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+      responses:
+        '200': { description: 'data: { period, currency, balances, on_hold_minor, flows, series[], payouts, refunds, top_owed[], reconciliation, definitions }' }
+  /admin/reports:
+    get:
+      summary: Reports the user may open, and whether they may export (reports.export)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: 'data: { reports: ReportInfo[] (key, title, description, uses_period, filters, columns), can_export }' }
+  /admin/reports/{report}:
+    get:
+      summary: 'Preview of the first 100 rows. Needs the report''s own permission. Keys: affiliate-registrations, affiliate-performance, affiliate-retention, product-performance, campaign-performance, commission-accruals, commission-reversals, payout-liability, payouts, outstanding-payouts, refunds, fraud-review.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: report, in: path, required: true, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+        - { name: affiliate_id, in: query, schema: { type: string }, description: Affiliate public id }
+        - { name: product_id, in: query, schema: { type: string }, description: Product public id }
+        - { name: coupon_id, in: query, schema: { type: string }, description: Coupon public id (campaign) }
+      responses:
+        '200': { description: 'data: ReportInfo + { period, rows[], truncated }' }
+        '403': { description: Missing the report permission }
+        '404': { description: Unknown report }
+  /admin/reports/{report}/export:
+    get:
+      summary: Stream the full report as CSV or XLSX (reports.export plus the report permission, 10/min, audited as report.exported)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: report, in: path, required: true, schema: { type: string } }
+        - { name: format, in: query, required: true, schema: { type: string, enum: [csv, xlsx] } }
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default 29 days before to' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'Nepal date, inclusive; default today. Range at most one year.' }
+        - { name: affiliate_id, in: query, schema: { type: string }, description: Affiliate public id }
+        - { name: product_id, in: query, schema: { type: string }, description: Product public id }
+        - { name: coupon_id, in: query, schema: { type: string }, description: Coupon public id (campaign) }
+      responses:
+        '200': { description: 'text/csv or XLSX attachment' }
+        '403': { description: Missing reports.export or the report permission }
+        '429': { description: Too many exports }
