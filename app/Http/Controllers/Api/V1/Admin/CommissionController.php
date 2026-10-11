@@ -56,7 +56,7 @@ class CommissionController extends Controller
 
     public function show(Commission $commission): array
     {
-        $commission->load(['order', 'affiliate', 'ledgerEntries.commission', 'ledgerEntries.adjustment']);
+        $commission->load(['order', 'affiliate', 'ledgerEntries.commission', 'ledgerEntries.adjustment', 'ledgerEntries.payout']);
 
         return ['data' => [
             ...(new StaffCommissionResource($commission))->resolve(request()),
@@ -99,7 +99,7 @@ class CommissionController extends Controller
     /** One affiliate's balances and ledger, for finance. */
     public function affiliateLedger(AffiliateProfile $affiliate, CommissionLedger $ledger): array
     {
-        $entries = $affiliate->ledgerEntries()->with(['commission', 'adjustment'])->latest('id')->paginate(50);
+        $entries = $affiliate->ledgerEntries()->with(['commission', 'adjustment', 'payout'])->latest('id')->paginate(50);
 
         return [
             'data' => LedgerEntryResource::collection($entries->getCollection())->resolve(request()),

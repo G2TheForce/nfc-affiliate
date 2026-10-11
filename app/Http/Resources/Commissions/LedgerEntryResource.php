@@ -22,6 +22,7 @@ class LedgerEntryResource extends JsonResource
             'currency' => $this->currency,
             'commission_id' => $this->commission?->public_id,
             'adjustment_id' => $this->adjustment?->public_id,
+            'payout_id' => $this->payout_id ? $this->payout?->public_id : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

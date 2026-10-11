@@ -55,6 +55,10 @@ return [
 
     'payouts' => [
         'minimum_minor' => (int) env('AFFILIATE_PAYOUT_MINIMUM_MINOR', 100000), // NPR 1,000
+        // true: the person who approved a payout cannot also confirm it as
+        // paid. Off by default for small finance teams; turn on with two or
+        // more finance staff.
+        'require_separate_payer' => (bool) env('AFFILIATE_PAYOUT_REQUIRE_SEPARATE_PAYER', false),
     ],
 
     'privacy' => [

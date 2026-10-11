@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class AffiliateProfile extends Model
@@ -115,5 +116,15 @@ class AffiliateProfile extends Model
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(CommissionLedgerEntry::class);
+    }
+
+    public function payoutMethod(): HasOne
+    {
+        return $this->hasOne(AffiliatePayoutMethod::class);
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class);
     }
 }

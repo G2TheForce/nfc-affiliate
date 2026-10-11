@@ -55,6 +55,7 @@ class Commission extends Model
             'held_at' => 'datetime',
             'approved_at' => 'datetime',
             'available_at' => 'datetime',
+            'paid_at' => 'datetime',
             'reversed_at' => 'datetime',
         ];
     }
@@ -98,5 +99,10 @@ class Commission extends Model
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(CommissionLedgerEntry::class);
+    }
+
+    public function payoutItems(): HasMany
+    {
+        return $this->hasMany(PayoutItem::class);
     }
 }

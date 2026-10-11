@@ -59,7 +59,7 @@ class EarningsController extends Controller
         $profile = $this->trackedProfile($request);
 
         return LedgerEntryResource::collection(
-            $profile->ledgerEntries()->with(['commission', 'adjustment'])->latest('id')->paginate(50)
+            $profile->ledgerEntries()->with(['commission', 'adjustment', 'payout'])->latest('id')->paginate(50)
         );
     }
 
