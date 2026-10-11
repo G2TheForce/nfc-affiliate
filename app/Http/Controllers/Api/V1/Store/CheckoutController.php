@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
@@ -76,7 +77,14 @@ class CheckoutController extends Controller
         $result = $checkout->place($request->validated(), $this->customer($request), $tracker->currentClick($request), $key);
         $order = $result['order']->load(['items', 'coupon']);
 
-        return (new OrderResource($order))->response()->setStatusCode($result['replayed'] ? 200 : 201);
+        // A secret for this browser only: it lets a guest pay for the order
+        // and see the result. Only its hash is stored; a replayed checkout
+        // gets a fresh one.
+        $token = Str::random(48);
+        $order->forceFill(['access_token_hash' => hash('sha256', $token)])->save();
+
+        return (new OrderResource($order))->additional(['meta' => ['access_token' => $token]])
+            ->response()->setStatusCode($result['replayed'] ? 200 : 201);
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Payments\PaymentReturnController;
 use App\Http\Controllers\ReferralRedirectController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
@@ -18,6 +19,15 @@ Route::get('/ref/{code}/{link?}', ReferralRedirectController::class)
     // No session or CSRF cookie: a click (or a bot) should not create a session row.
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
     ->name('referral.redirect');
+
+// eSewa and Khalti send the customer back here. Each visit triggers a
+// server-side status check; the redirect itself proves nothing.
+Route::middleware('throttle:30,1')->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
+    ->prefix('payments')->name('payments.')->group(function () {
+        Route::get('esewa/return', [PaymentReturnController::class, 'esewaReturn'])->name('esewa.return');
+        Route::get('esewa/failure/{attempt}', [PaymentReturnController::class, 'esewaFailure'])->whereUlid('attempt')->name('esewa.failure');
+        Route::get('khalti/return', [PaymentReturnController::class, 'khaltiReturn'])->name('khalti.return');
+    });
 
 Route::view('/{any?}', 'app')
     ->where('any', '^(?!api/|up$|sanctum/).*$')
