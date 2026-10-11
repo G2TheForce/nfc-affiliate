@@ -28,6 +28,13 @@ return [
         'policy' => env('AFFILIATE_ATTRIBUTION_POLICY', 'last_click'),
         'window_days' => (int) env('AFFILIATE_ATTRIBUTION_WINDOW_DAYS', 30),
         'coupon_overrides_click' => true,
+        // Encrypted first-party cookie holding the click id, and a random
+        // visitor id used only to tell unique clicks from repeats.
+        'cookie' => 'nfc_ref',
+        'visitor_cookie' => 'nfc_vid',
+        'unique_click_hours' => 24,
+        // Above this, clicks from one IP still redirect but are not recorded.
+        'clicks_per_minute_per_ip' => (int) env('AFFILIATE_CLICKS_PER_MINUTE_PER_IP', 30),
     ],
 
     'applications' => [
@@ -50,6 +57,15 @@ return [
     'privacy' => [
         // Referral clicks and audit IPs are stored only as keyed hashes.
         'click_retention_days' => (int) env('AFFILIATE_CLICK_RETENTION_DAYS', 395),
+        // Visitor and IP hashes on clicks are cleared after this many days.
+        'click_metadata_retention_days' => (int) env('AFFILIATE_CLICK_METADATA_RETENTION_DAYS', 90),
+    ],
+
+    'store' => [
+        'order_number_prefix' => env('STORE_ORDER_NUMBER_PREFIX', 'NFC'),
+        // Flat delivery charge in minor units until a shipping provider is connected.
+        'shipping_flat_minor' => (int) env('STORE_SHIPPING_FLAT_MINOR', 0),
+        'max_quantity_per_line' => 100,
     ],
 
     // Single-page app URL used in emailed links (verification, password reset).

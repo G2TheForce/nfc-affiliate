@@ -3,13 +3,22 @@
 use App\Enums\Permission;
 use App\Http\Controllers\Api\V1\Admin\AffiliateController;
 use App\Http\Controllers\Api\V1\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Admin\CouponController;
+use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\PingController;
+use App\Http\Controllers\Api\V1\Admin\ProductController;
+use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
+use App\Http\Controllers\Api\V1\Affiliate\ReferralLinkController;
+use App\Http\Controllers\Api\V1\Affiliate\ReferralReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Store\CatalogController;
+use App\Http\Controllers\Api\V1\Store\CheckoutController;
+use App\Http\Controllers\Api\V1\Store\CustomerOrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -30,6 +39,19 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->middleware(['signed', 'throttle:6,1'])->name('verify-email');
     });
 
+    // Public store. Signed-in customers are recognised from the session or
+    // token when present; guests can check out too.
+    Route::prefix('store')->name('store.')->middleware('throttle:store')->group(function () {
+        Route::get('products', [CatalogController::class, 'products'])->name('products.index');
+        Route::get('products/{slug}', [CatalogController::class, 'product'])
+            ->where('slug', '[a-z0-9-]+')->name('products.show');
+        Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
+        Route::get('referral', [CheckoutController::class, 'referral'])->name('referral');
+        Route::post('cart/quote', [CheckoutController::class, 'quote'])->name('cart.quote');
+        Route::post('orders', [CheckoutController::class, 'store'])
+            ->middleware('throttle:checkout')->name('orders.store');
+    });
+
     // Authenticated endpoints
     Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
@@ -45,6 +67,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('{id}/read', [NotificationController::class, 'markRead'])->whereUuid('id')->name('read');
         });
 
+        Route::get('orders', [CustomerOrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [CustomerOrderController::class, 'show'])->whereUlid('order')->name('orders.show');
+
         // Affiliate self-service: always the signed-in user's own profile.
         Route::prefix('affiliate')->name('affiliate.')->middleware('verified')->group(function () {
             Route::get('terms/current', [AffiliateMembershipController::class, 'currentTerms'])->name('terms.current');
@@ -55,6 +80,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::patch('profile', [AffiliateMembershipController::class, 'update'])->name('profile.update');
             Route::post('profile/close', [AffiliateMembershipController::class, 'close'])
                 ->middleware('throttle:6,1')->name('profile.close');
+
+            Route::middleware('permission:'.Permission::AffiliatePortal->value)->group(function () {
+                Route::get('links', [ReferralLinkController::class, 'index'])->name('links.index');
+                Route::post('links', [ReferralLinkController::class, 'store'])->middleware('throttle:30,1')->name('links.store');
+                Route::patch('links/{link}', [ReferralLinkController::class, 'update'])->whereUlid('link')->name('links.update');
+                Route::get('referrals/summary', [ReferralReportController::class, 'summary'])->name('referrals.summary');
+                Route::get('referrals/orders', [ReferralReportController::class, 'orders'])->name('referrals.orders');
+            });
         });
 
         // Staff area: verified email + admin.access, then a specific permission per route.
@@ -82,6 +115,29 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::post('{affiliate}/deactivate', [AffiliateController::class, 'deactivate'])->middleware($suspend)->name('deactivate');
                     Route::post('{affiliate}/reactivate', [AffiliateController::class, 'reactivate'])->middleware($suspend)->name('reactivate');
                 });
+
+                $catalog = 'permission:'.Permission::CatalogManage->value;
+                $campaigns = 'permission:'.Permission::CampaignsManage->value;
+                Route::get('products', [ProductController::class, 'index'])
+                    ->middleware('permission:'.Permission::CatalogManage->value.'|'.Permission::CampaignsManage->value)->name('products.index');
+                Route::post('products', [ProductController::class, 'store'])->middleware($catalog)->name('products.store');
+                Route::patch('products/{product}', [ProductController::class, 'update'])->middleware($catalog)->name('products.update');
+                Route::get('categories', [ProductController::class, 'categories'])->middleware($catalog)->name('categories.index');
+                Route::post('categories', [ProductController::class, 'storeCategory'])->middleware($catalog)->name('categories.store');
+
+                Route::get('coupons', [CouponController::class, 'index'])->middleware($campaigns)->name('coupons.index');
+                Route::post('coupons', [CouponController::class, 'store'])->middleware($campaigns)->name('coupons.store');
+                Route::patch('coupons/{coupon}', [CouponController::class, 'update'])->middleware($campaigns)->name('coupons.update');
+
+                Route::prefix('orders')->name('orders.')->group(function () {
+                    Route::get('/', [OrderController::class, 'index'])->middleware('permission:'.Permission::OrdersView->value)->name('index');
+                    Route::get('{order}', [OrderController::class, 'show'])->middleware('permission:'.Permission::OrdersView->value)->name('show');
+                    Route::post('{order}/cancel', [OrderController::class, 'cancel'])->middleware('permission:'.Permission::OrdersManage->value)->name('cancel');
+                    Route::post('{order}/attribution', [OrderController::class, 'attribute'])->middleware('permission:'.Permission::AttributionManual->value)->name('attribution');
+                });
+
+                Route::get('referrals/summary', [AdminReferralReportController::class, 'summary'])
+                    ->middleware('permission:'.Permission::ReportsView->value)->name('referrals.summary');
 
                 Route::get('terms', [TermsController::class, 'index'])
                     ->middleware('permission:'.Permission::AffiliatesView->value)->name('terms.index');

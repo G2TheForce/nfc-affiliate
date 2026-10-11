@@ -82,6 +82,21 @@ class AffiliateProfile extends Model
         return $this->hasMany(AffiliateNote::class)->orderByDesc('id');
     }
 
+    public function links(): HasMany
+    {
+        return $this->hasMany(AffiliateLink::class)->orderByDesc('id');
+    }
+
+    public function clicks(): HasMany
+    {
+        return $this->hasMany(ReferralClick::class);
+    }
+
+    public function coupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class);
+    }
+
     public function hasAcceptedTerms(AffiliateTermsVersion $version): bool
     {
         return $this->termsAcceptances()->where('terms_version_id', $version->id)->exists();
