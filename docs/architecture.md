@@ -51,6 +51,15 @@ Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`,
 - Notifications use queued mail plus the `database` channel for the in-app list (`/api/v1/notifications`). They are dispatched `afterCommit`, so a mail failure can never undo a decision.
 - Lifecycle rules and policies: [ADR 0006](adr/0006-affiliate-membership-policy.md).
 
+## Store and referral tracking (Phase 3)
+
+- Built-in store: catalog, affiliate coupons, guest or signed-in checkout (`app/Domain/Store`). Orders are priced on the server and start as `pending_payment`.
+- Referral links: `GET /ref/{code}/{link?}` (`ReferralRedirectController` → `ReferralTracker`). It records a minimised click, sets the encrypted `nfc_ref` cookie and redirects to an allow-listed store path.
+- Attribution: `AttributionResolver` decides at checkout. The order is credited to the affiliate coupon, then a typed referral code, then the last valid click within 30 days. Self-referrals and ineligible affiliates are skipped and recorded as `blocked`. `ManualAttributionService` lets staff reassign an order with a reason.
+- Events: `ReferralEventRecorder` writes idempotent `referral_events`. `ReferralReport` builds the affiliate and staff summaries.
+- Retention: the `affiliate:prune-referral-data` command runs daily from the scheduler. Run `php artisan schedule:work` locally, or the cron entry in production.
+- Full decision record: [ADR 0007](adr/0007-store-and-referral-tracking.md).
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -69,6 +78,9 @@ Validation errors use Laravel's standard shape:
 | `register` | 10/hour per IP |
 | `password-reset` | 5/min per IP |
 | verification link and resend | 6/min |
+| `store` (catalog, quote, referral) | 60/min per IP |
+| `checkout` (place order) | 10/min per IP |
+| referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
 ## Security headers
 
@@ -82,6 +94,9 @@ Business defaults (timezone, currency, attribution window, holding period, payou
 
 ```
 app/Domain/Audit          AuditLogger
+app/Domain/Affiliates     Membership lifecycle
+app/Domain/Store          Checkout, coupons, order numbers, cancellation
+app/Domain/Referrals      Click tracking, attribution, events, reports
 app/Enums                 Role, Permission, UserStatus
 app/Support/Authorization PermissionMatrix
 app/Http/Controllers/Api/V1/{Auth,Admin}

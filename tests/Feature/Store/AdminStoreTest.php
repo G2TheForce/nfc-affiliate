@@ -92,6 +92,13 @@ class AdminStoreTest extends TestCase
             ->assertJsonPath('data.attribution.source', 'referral_code');
         $this->assertStringNotContainsString('sita@example.com', $response->getContent());
 
+        // A list of several attributed orders (lazy loading is disabled in tests, so this also catches N+1s).
+        $this->placeOrder($this->product(), null, ['referral_code' => $affiliate->referral_code, 'customer_email' => 'om@example.com'])->assertCreated();
+        $list = $this->actingAs($support)->getJson('/api/v1/admin/orders?attribution=attributed')->assertOk()->assertJsonCount(2, 'data');
+        $this->assertSame([$affiliate->public_id, $affiliate->public_id], array_column(array_column(array_column($list->json('data'), 'attribution'), 'affiliate'), 'id'));
+        $this->assertContains('si***@example.com', array_column($list->json('data'), 'customer_email'));
+        $this->assertStringNotContainsString('sita@example.com', $list->getContent());
+
         $this->actingAs($support)->postJson("/api/v1/admin/orders/{$order->public_id}/cancel", ['reason' => 'Trying it'])->assertForbidden();
         $this->actingAs($support)->postJson("/api/v1/admin/orders/{$order->public_id}/attribution", ['affiliate_id' => $affiliate->public_id, 'reason' => 'Trying this out'])->assertForbidden();
     }

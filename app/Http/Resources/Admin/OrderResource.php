@@ -16,9 +16,18 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderResource extends JsonResource
 {
-    public function __construct($resource, private readonly bool $detail = false)
+    private bool $detail = false;
+
+    /**
+     * Full view for the order page: items, click details and reasons.
+     * (Not a constructor flag: collections pass the item key as the second argument.)
+     */
+    public static function detail(Order $order): self
     {
-        parent::__construct($resource);
+        $resource = new self($order);
+        $resource->detail = true;
+
+        return $resource;
     }
 
     public function toArray(Request $request): array

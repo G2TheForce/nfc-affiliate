@@ -22,6 +22,9 @@ class ReferralRedirectTest extends TestCase
 
         $response->assertRedirect('/');
         $response->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        // A click never starts a session.
+        $response->assertCookieMissing(config('session.cookie'));
+        $response->assertCookieMissing('XSRF-TOKEN');
         $click = ReferralClick::sole();
         $this->assertSame($affiliate->id, $click->affiliate_profile_id);
         $this->assertSame('facebook', $click->utm_source);

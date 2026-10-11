@@ -30,7 +30,7 @@ class OrderController extends Controller
         $canSeeAttribution = $request->user()->can(Permission::AttributionView->value);
 
         $orders = Order::query()
-            ->with(['coupon', 'attribution.affiliate'])
+            ->with(['coupon', 'attribution.affiliate', 'attribution.decider'])
             ->when($filters['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
             ->when($canSeeAttribution ? ($filters['attribution'] ?? null) : null, fn ($q, $s) => $q->where('attribution_status', $s))
             ->when($canSeeAttribution ? ($filters['affiliate_id'] ?? null) : null, fn ($q, $id) => $q->whereHas('attribution.affiliate', fn ($a) => $a->where('public_id', $id)))
@@ -77,6 +77,6 @@ class OrderController extends Controller
     {
         $order->refresh()->load(['items', 'coupon', 'attribution.affiliate', 'attribution.click.link', 'attribution.decider']);
 
-        return new OrderResource($order, detail: true);
+        return OrderResource::detail($order);
     }
 }

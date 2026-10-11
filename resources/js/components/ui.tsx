@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 import { useId } from 'react';
 
 export function Button({
@@ -125,8 +125,55 @@ export function TextArea({
     );
 }
 
+export function Select({
+    label,
+    error,
+    children,
+    ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; error?: string }) {
+    const id = useId();
+    return (
+        <div className="space-y-1">
+            <label htmlFor={id} className="block text-sm font-medium text-ink">
+                {label}
+            </label>
+            <select
+                id={id}
+                {...props}
+                aria-invalid={!!error}
+                aria-describedby={error ? `${id}-error` : undefined}
+                className={`block min-h-11 w-full rounded-lg border bg-surface px-3 text-base text-ink shadow-sm sm:text-sm ${error ? 'border-danger' : 'border-line'}`}
+            >
+                {children}
+            </select>
+            {error && (
+                <p id={`${id}-error`} className="text-sm text-danger">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+    return (
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+            <p className="text-sm text-muted">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-ink tabular-nums">{value}</p>
+            {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+        </div>
+    );
+}
+
 const STATUS_STYLES: Record<string, string> = {
     pending: 'bg-warning/10 text-warning',
+    pending_payment: 'bg-warning/10 text-warning',
+    paid: 'bg-success/10 text-success',
+    cancelled: 'bg-line text-muted',
+    refunded: 'bg-line text-muted',
+    attributed: 'bg-success/10 text-success',
+    blocked: 'bg-danger/10 text-danger',
+    none: 'bg-line text-muted',
     approved: 'bg-success/10 text-success',
     rejected: 'bg-danger/10 text-danger',
     suspended: 'bg-danger/10 text-danger',
