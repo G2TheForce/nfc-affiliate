@@ -17,7 +17,9 @@ Every permission is enforced on the server (route middleware, policies or servic
 | `commission_rules.manage` | Create and change commission rules | yes | yes |  |  |  |  |
 | `campaigns.manage` | Create and change campaigns and coupons | yes | yes |  |  |  |  |
 | `marketing_assets.manage` | Upload and manage marketing assets | yes | yes |  |  |  |  |
+| `catalog.manage` | Create and change products and categories | yes |  |  |  |  |  |
 | `orders.view` | View orders and masked customer details | yes | yes | yes | yes |  |  |
+| `orders.manage` | Cancel unpaid orders (reason required) | yes |  |  |  |  |  |
 | `attribution.view` | View order attribution | yes | yes | yes | yes |  |  |
 | `attribution.manual` | Manually attribute an order (reason required) | yes | yes |  |  |  |  |
 | `commissions.view` | View commissions and the ledger | yes | yes | yes |  |  |  |

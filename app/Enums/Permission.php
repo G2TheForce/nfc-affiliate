@@ -23,8 +23,12 @@ enum Permission: string
     case CampaignsManage = 'campaigns.manage';
     case MarketingAssetsManage = 'marketing_assets.manage';
 
+    // Store
+    case CatalogManage = 'catalog.manage';
+
     // Orders and attribution
     case OrdersView = 'orders.view';
+    case OrdersManage = 'orders.manage';
     case AttributionView = 'attribution.view';
     case AttributionManual = 'attribution.manual';
 
@@ -62,7 +66,9 @@ enum Permission: string
             self::CommissionRulesManage => 'Create and change commission rules',
             self::CampaignsManage => 'Create and change campaigns and coupons',
             self::MarketingAssetsManage => 'Upload and manage marketing assets',
+            self::CatalogManage => 'Create and change products and categories',
             self::OrdersView => 'View orders and masked customer details',
+            self::OrdersManage => 'Cancel unpaid orders (reason required)',
             self::AttributionView => 'View order attribution',
             self::AttributionManual => 'Manually attribute an order (reason required)',
             self::CommissionsView => 'View commissions and the ledger',

@@ -29,11 +29,12 @@ async function ensureCsrfCookie(): Promise<void> {
     csrfReady = null;
 }
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T>(path: string, options: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
     const method = (options.method ?? 'GET').toUpperCase();
     const headers: Record<string, string> = {
         Accept: 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
+        ...options.headers,
     };
 
     if (method !== 'GET') {

@@ -2,11 +2,18 @@
 
 Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmandu): affiliate onboarding, referral tracking, commission accounting, payouts, dashboards and reports.
 
-**Status: Phase 2 (Affiliate onboarding) complete.** Authentication, roles, audit logging, affiliate applications, staff review, suspension and reactivation, terms versions and notifications are built and tested. Referral tracking, commissions and payouts are not built yet. See [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
+**Status: Phase 3 (Referral tracking) complete.** Built and tested so far:
+
+- Authentication, roles and audit logging.
+- Affiliate onboarding: applications, staff review, suspension, terms versions and notifications.
+- A built-in store: catalog, affiliate coupons and checkout.
+- Referral links, click tracking, last-click attribution and referral reports.
+
+Payments, commissions and payouts are not built yet. See [docs/phase-3-report.md](docs/phase-3-report.md), [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
 
 ## Stack
 
-- PHP 8.2+ (tested on 8.3), Laravel 12, MySQL 8
+- PHP 8.3+, Laravel 12, MySQL 8
 - Laravel Sanctum (session cookie for the web app, bearer tokens for mobile/API clients)
 - spatie/laravel-permission for roles and permissions
 - React 19 + TypeScript + React Router 7 + Tailwind CSS 4, built with Vite, served by Laravel
@@ -27,6 +34,7 @@ php artisan affiliate:create-admin
 npm run build                    # or `npm run dev` while developing
 php artisan serve                # http://localhost:8000
 php artisan queue:work           # in a second terminal: sends queued emails
+php artisan schedule:work        # optional locally: daily referral-data retention
 ```
 
 With `MAIL_MAILER=log`, verification and reset emails are written to `storage/logs/`.
@@ -39,7 +47,8 @@ With `MAIL_MAILER=log`, verification and reset emails are written to `storage/lo
 | `npm run typecheck` / `npm run lint` / `npm run build` | Frontend checks |
 | `php artisan affiliate:create-admin` | Create the first Super Administrator (no default password) |
 | `php artisan affiliate:permissions-matrix` | Regenerate [docs/permissions-matrix.md](docs/permissions-matrix.md) |
-| `php artisan db:seed --class=DevelopmentSeeder` | Local only: one `@dev.invalid` user per role |
+| `php artisan db:seed --class=DevelopmentSeeder` | Local only: one `@dev.invalid` user per role, sample affiliates, products and a coupon |
+| `php artisan affiliate:prune-referral-data` | Apply click retention (also scheduled daily) |
 | `vendor/bin/pint` | Format PHP code |
 
 ## Documentation
