@@ -1,6 +1,6 @@
 # Architecture
 
-This describes what is built now (Phase 1). The full target design is in [phase-0-plan.md](phase-0-plan.md).
+This describes what is built now (Phases 1 and 2). The full target design is in [phase-0-plan.md](phase-0-plan.md).
 
 ## Overview
 
@@ -41,6 +41,15 @@ Users have an internal auto-increment `id`, which never leaves the server, and a
 `audit_logs` is append-only. The model throws on update or delete, and in production the database user should have only `INSERT, SELECT` on that table. `AuditLogger` redacts keys that look like secrets (password, token, secret, signature, api key, account number, card) and stores IP addresses as an HMAC keyed with `APP_KEY`, not as the raw address.
 
 Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`, `auth.email_verified`, `auth.password_reset`, `admin.bootstrap_created`.
+
+## Affiliate onboarding (Phase 2)
+
+- `AffiliateMembershipService` owns every membership change (apply, approve, reject, suspend, reinstate, deactivate, reactivate, member closure, terms acceptance, staff notes). Controllers stay thin.
+- Member endpoints (`/api/v1/affiliate/*`) always act on the signed-in user's own profile. They never take a profile id from the request.
+- Staff endpoints (`/api/v1/admin/affiliates/*`) need `affiliates.view`, plus `affiliates.review` (approve, reject, notes) or `affiliates.suspend` (suspend, reinstate, deactivate, reactivate). Publishing terms needs `settings.manage`.
+- Responses for members (`AffiliateProfileResource`) contain no internal notes, reviewer names or internal ids. Staff responses (`AffiliateDetailResource`) include notes, the full history and possible-duplicate signals.
+- Notifications use queued mail plus the `database` channel for the in-app list (`/api/v1/notifications`). They are dispatched `afterCommit`, so a mail failure can never undo a decision.
+- Lifecycle rules and policies: [ADR 0006](adr/0006-affiliate-membership-policy.md).
 
 ## Errors
 

@@ -3,6 +3,11 @@ import { homePathFor, useAuth } from '@/auth/AuthContext';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from '@/layouts/AppLayout';
 import AccountHomePage from '@/pages/account/AccountHomePage';
+import AffiliatePage from '@/pages/account/AffiliatePage';
+import AffiliateDetailPage from '@/pages/admin/AffiliateDetailPage';
+import AffiliatesListPage from '@/pages/admin/AffiliatesListPage';
+import TermsPage from '@/pages/admin/TermsPage';
+import NotificationsPage from '@/pages/shared/NotificationsPage';
 import AdminHomePage from '@/pages/admin/AdminHomePage';
 import AuditLogPage from '@/pages/admin/AuditLogPage';
 import EmailVerifiedPage from '@/pages/auth/EmailVerifiedPage';
@@ -35,11 +40,20 @@ export default function App() {
                 path="/account"
                 element={
                     <RequireAuth>
-                        <AppLayout area="My account" nav={[{ to: '/account', label: 'Overview' }]} />
+                        <AppLayout
+                            area="My account"
+                            notificationsPath="/account/notifications"
+                            nav={[
+                                { to: '/account', label: 'Overview' },
+                                { to: '/account/affiliate', label: 'Affiliate programme' },
+                            ]}
+                        />
                     </RequireAuth>
                 }
             >
                 <Route index element={<AccountHomePage />} />
+                <Route path="affiliate" element={<AffiliatePage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             <Route
@@ -48,8 +62,11 @@ export default function App() {
                     <RequireAuth staff>
                         <AppLayout
                             area="Staff"
+                            notificationsPath="/admin/notifications"
                             nav={[
                                 { to: '/admin', label: 'Dashboard' },
+                                { to: '/admin/affiliates', label: 'Affiliates', permission: 'affiliates.view' },
+                                { to: '/admin/terms', label: 'Affiliate terms', permission: 'affiliates.view' },
                                 { to: '/admin/audit-logs', label: 'Audit log', permission: 'audit_logs.view' },
                             ]}
                         />
@@ -58,6 +75,10 @@ export default function App() {
             >
                 <Route index element={<AdminHomePage />} />
                 <Route path="audit-logs" element={<AuditLogPage />} />
+                <Route path="affiliates" element={<AffiliatesListPage />} />
+                <Route path="affiliates/:id" element={<AffiliateDetailPage />} />
+                <Route path="terms" element={<TermsPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

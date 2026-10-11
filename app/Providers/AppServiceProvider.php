@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domain\Affiliates\AffiliateMembershipService;
+use App\Domain\Affiliates\ReferralIdentifierGenerator;
 use App\Domain\Audit\AuditLogger;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -19,6 +21,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(AuditLogger::class, fn ($app) => new AuditLogger($app->bound('request') ? $app['request'] : null));
+        $this->app->scoped(AffiliateMembershipService::class, fn ($app) => new AffiliateMembershipService(
+            $app->make(AuditLogger::class),
+            $app->make(ReferralIdentifierGenerator::class),
+            $app->bound('request') ? $app['request'] : null,
+        ));
     }
 
     public function boot(): void

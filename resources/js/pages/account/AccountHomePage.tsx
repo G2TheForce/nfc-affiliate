@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { useAuth } from '@/auth/AuthContext';
 import { Card } from '@/components/ui';
 
@@ -9,9 +10,11 @@ export default function AccountHomePage() {
             <h1 className="text-2xl font-semibold text-ink">Welcome, {user?.name}</h1>
             <Card title="Affiliate programme">
                 <p className="text-sm text-muted">
-                    Affiliate applications open in the next release. Once your application is approved, your referral links, earnings and payouts
-                    will appear here.
+                    Promote our NFC cards and earn a commission on eligible paid orders from your referrals.
                 </p>
+                <Link to="/account/affiliate" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
+                    {user?.roles.includes('affiliate') ? 'Open your affiliate area' : 'Apply or check your application'}
+                </Link>
             </Card>
             <Card title="Your account">
                 <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
