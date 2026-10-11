@@ -7,13 +7,16 @@ use App\Enums\AdjustmentStatus;
 use App\Enums\CommissionStatus;
 use App\Enums\LedgerBucket;
 use App\Enums\PayoutStatus;
+use App\Enums\Permission;
 use App\Models\Commission;
 use App\Models\CommissionAdjustment;
 use App\Models\Payout;
 use App\Models\ReconciliationRun;
 use App\Models\User;
+use App\Notifications\Finance\ReconciliationDriftDetected;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Re-derives what the ledger should hold from the commission and adjustment
@@ -89,6 +92,8 @@ class ReconciliationService
         if ($issues !== []) {
             Log::error('Commission ledger reconciliation found drift.', ['run' => $run->public_id, 'issues' => count($issues)]);
             $this->audit->log('reconciliation.drift', $run, ['issues' => count($issues)], $actor);
+            $finance = User::permission(Permission::ReconciliationView->value)->where('status', 'active')->get();
+            Notification::send($finance, new ReconciliationDriftDetected($run->public_id, count($issues)));
         }
 
         return $run;
