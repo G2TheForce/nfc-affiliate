@@ -43,7 +43,7 @@ Rule scopes: global, plan, category, product, affiliate. Kinds: percent (basis p
 ### Lifecycle
 
 ```
-pending  --(holding period passed, not held, order still paid)-->  approved  --(auto or finance release)-->  available  --(payout, Phase 5)-->  paid
+pending  --(holding period passed, not held, order still paid)-->  approved  --(auto or finance release)-->  available  --(payout, ADR 0009)-->  paid
 pending | approved  --(voided by staff, or fully refunded)-->  reversed
 ```
 
@@ -52,7 +52,7 @@ pending | approved  --(voided by staff, or fully refunded)-->  reversed
 - Holds (`fraud.review`) stop a pending or approved commission from moving on. A commission whose affiliate was not approved at payment time is created on hold.
 - Partial reversal is a flag (`reversed_minor > 0`), not a separate state, so a partly refunded commission keeps its place in the lifecycle.
 - Void (`fraud.review`) cancels a pending or approved commission with a reason. Available or paid commissions are corrected with an adjustment instead.
-- A refund after payout (Phase 5) reverses the commission from the available balance, which may go negative. That negative balance is recovered from future commission; nothing is deleted.
+- A refund after payout ([ADR 0009](0009-payouts.md)) reverses the commission from the available balance, which may go negative. That negative balance is recovered from future commission; nothing is deleted.
 
 ### Ledger and balances (extends ADR 0003)
 
