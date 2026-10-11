@@ -185,6 +185,8 @@ const STATUS_STYLES: Record<string, string> = {
     on_hold: 'bg-danger/10 text-danger',
     clean: 'bg-success/10 text-success',
     drift: 'bg-danger/10 text-danger',
+    requested: 'bg-warning/10 text-warning',
+    failed: 'bg-danger/10 text-danger',
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {
