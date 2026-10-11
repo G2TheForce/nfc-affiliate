@@ -1,15 +1,21 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Api\V1\Admin\AdjustmentController;
 use App\Http\Controllers\Api\V1\Admin\AffiliateController;
 use App\Http\Controllers\Api\V1\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Admin\CommissionController;
+use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
+use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\PingController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
+use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
 use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
+use App\Http\Controllers\Api\V1\Affiliate\EarningsController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralLinkController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
@@ -87,6 +93,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::patch('links/{link}', [ReferralLinkController::class, 'update'])->whereUlid('link')->name('links.update');
                 Route::get('referrals/summary', [ReferralReportController::class, 'summary'])->name('referrals.summary');
                 Route::get('referrals/orders', [ReferralReportController::class, 'orders'])->name('referrals.orders');
+                Route::get('earnings/summary', [EarningsController::class, 'summary'])->name('earnings.summary');
+                Route::get('earnings/commissions', [EarningsController::class, 'commissions'])->name('earnings.commissions');
+                Route::get('earnings/ledger', [EarningsController::class, 'ledger'])->name('earnings.ledger');
+                Route::get('earnings/rates', [EarningsController::class, 'rates'])->name('earnings.rates');
             });
         });
 
@@ -134,7 +144,42 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::get('{order}', [OrderController::class, 'show'])->middleware('permission:'.Permission::OrdersView->value)->name('show');
                     Route::post('{order}/cancel', [OrderController::class, 'cancel'])->middleware('permission:'.Permission::OrdersManage->value)->name('cancel');
                     Route::post('{order}/attribution', [OrderController::class, 'attribute'])->middleware('permission:'.Permission::AttributionManual->value)->name('attribution');
+                    Route::post('{order}/payments', [OrderController::class, 'confirmPayment'])->middleware('permission:'.Permission::PaymentsConfirm->value)->name('payments.store');
+                    Route::post('{order}/refunds', [OrderController::class, 'refund'])->middleware('permission:'.Permission::RefundsRecord->value)->name('refunds.store');
                 });
+
+                $rules = 'permission:'.Permission::CommissionRulesManage->value;
+                $commissionsView = 'permission:'.Permission::CommissionsView->value;
+                $fraud = 'permission:'.Permission::FraudReview->value;
+                $approve = 'permission:'.Permission::CommissionsApprove->value;
+
+                Route::get('commission-rules', [CommissionRuleController::class, 'index'])->middleware($rules.'|'.Permission::CommissionsView->value)->name('commission-rules.index');
+                Route::get('commission-rules/preview', [CommissionRuleController::class, 'preview'])->middleware($rules.'|'.Permission::CommissionsView->value)->name('commission-rules.preview');
+                Route::post('commission-rules', [CommissionRuleController::class, 'store'])->middleware($rules)->name('commission-rules.store');
+                Route::patch('commission-rules/{rule}', [CommissionRuleController::class, 'update'])->middleware($rules)->name('commission-rules.update');
+                Route::get('commission-plans', [CommissionPlanController::class, 'index'])->middleware($rules.'|'.Permission::CommissionsView->value)->name('commission-plans.index');
+                Route::post('commission-plans', [CommissionPlanController::class, 'store'])->middleware($rules)->name('commission-plans.store');
+                Route::patch('commission-plans/{plan}', [CommissionPlanController::class, 'update'])->middleware($rules)->name('commission-plans.update');
+                Route::post('affiliates/{affiliate}/plan', [CommissionPlanController::class, 'assign'])->middleware($rules)->name('affiliates.plan');
+                Route::get('affiliates/{affiliate}/ledger', [CommissionController::class, 'affiliateLedger'])->middleware($commissionsView)->name('affiliates.ledger');
+
+                Route::prefix('commissions')->name('commissions.')->group(function () use ($commissionsView, $fraud, $approve) {
+                    Route::get('/', [CommissionController::class, 'index'])->middleware($commissionsView)->name('index');
+                    Route::get('summary', [CommissionController::class, 'summary'])->middleware($commissionsView)->name('summary');
+                    Route::get('{commission}', [CommissionController::class, 'show'])->whereUlid('commission')->middleware($commissionsView)->name('show');
+                    Route::post('{commission}/hold', [CommissionController::class, 'hold'])->middleware($fraud)->name('hold');
+                    Route::post('{commission}/release-hold', [CommissionController::class, 'releaseHold'])->middleware($fraud)->name('release-hold');
+                    Route::post('{commission}/void', [CommissionController::class, 'void'])->middleware($fraud)->name('void');
+                    Route::post('{commission}/release', [CommissionController::class, 'release'])->middleware($approve)->name('release');
+                });
+
+                Route::get('adjustments', [AdjustmentController::class, 'index'])->middleware($commissionsView)->name('adjustments.index');
+                Route::post('adjustments', [AdjustmentController::class, 'store'])->middleware('permission:'.Permission::CommissionsAdjust->value)->name('adjustments.store');
+                Route::post('adjustments/{adjustment}/approve', [AdjustmentController::class, 'approve'])->middleware($approve)->name('adjustments.approve');
+                Route::post('adjustments/{adjustment}/reject', [AdjustmentController::class, 'reject'])->middleware($approve)->name('adjustments.reject');
+
+                Route::get('reconciliation', [ReconciliationController::class, 'index'])->middleware('permission:'.Permission::ReconciliationView->value)->name('reconciliation.index');
+                Route::post('reconciliation', [ReconciliationController::class, 'store'])->middleware(['permission:'.Permission::ReconciliationView->value, 'throttle:6,1'])->name('reconciliation.store');
 
                 Route::get('referrals/summary', [AdminReferralReportController::class, 'summary'])
                     ->middleware('permission:'.Permission::ReportsView->value)->name('referrals.summary');

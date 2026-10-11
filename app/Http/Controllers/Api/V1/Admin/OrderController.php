@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Domain\Payments\ManualPaymentService;
+use App\Domain\Payments\RefundService;
 use App\Domain\Referrals\ManualAttributionService;
 use App\Domain\Store\OrderService;
 use App\Enums\AttributionStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Admin\OrderResource;
 use App\Models\AffiliateProfile;
 use App\Models\Order;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
@@ -73,9 +77,44 @@ class OrderController extends Controller
         return $this->detail($order);
     }
 
+    /** Staff confirm a payment they verified themselves, with its reference. */
+    public function confirmPayment(Request $request, Order $order, ManualPaymentService $payments): JsonResponse
+    {
+        $data = $request->validate([
+            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            'reference' => ['required', 'string', 'min:3', 'max:100'],
+            'amount_minor' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $result = $payments->confirm($order, $request->user(), $data);
+
+        return $this->detail($order)->response()->setStatusCode($result['replayed'] ? 200 : 201);
+    }
+
+    /** Records a refund already paid back to the customer. */
+    public function refund(Request $request, Order $order, RefundService $refunds): JsonResponse
+    {
+        $data = $request->validate([
+            'reference' => ['required', 'string', 'min:3', 'max:100'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'items' => ['nullable', 'array', 'max:50'],
+            'items.*.item_id' => ['required', 'string', 'ulid'],
+            'items.*.amount_minor' => ['required', 'integer', 'min:1'],
+            'shipping_minor' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $result = $refunds->record($order, $request->user(), $data);
+
+        return $this->detail($order)->additional(['meta' => ['commission_reversed_minor' => $result['commission_reversed_minor']]])
+            ->response()->setStatusCode($result['replayed'] ? 200 : 201);
+    }
+
     private function detail(Order $order): OrderResource
     {
-        $order->refresh()->load(['items', 'coupon', 'attribution.affiliate', 'attribution.click.link', 'attribution.decider']);
+        $order->refresh()->load([
+            'items' => fn ($q) => $q->withSum('refundItems as refunded_minor', 'amount_minor'),
+            'coupon', 'attribution.affiliate', 'attribution.click.link', 'attribution.decider',
+            'payment.confirmer', 'refunds.items.orderItem', 'refunds.recorder', 'commissions.affiliate',
+        ]);
 
         return OrderResource::detail($order);
     }

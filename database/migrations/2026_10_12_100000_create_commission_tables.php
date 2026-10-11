@@ -2,7 +2,9 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * Commission accounting (ADR 0003, ADR 0008): rules, verified payments and
@@ -51,6 +53,17 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['scope', 'is_active']);
+        });
+
+        // Refunds name order lines, so lines get a public id too.
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->ulid('public_id')->nullable()->after('id');
+        });
+        DB::table('order_items')->whereNull('public_id')->orderBy('id')->each(function (object $item) {
+            DB::table('order_items')->where('id', $item->id)->update(['public_id' => (string) Str::ulid()]);
+        });
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->unique('public_id');
         });
 
         Schema::table('orders', function (Blueprint $table) {
@@ -205,6 +218,10 @@ return new class extends Migration
         Schema::dropIfExists('order_payments');
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn(['paid_at', 'refunded_minor']);
+        });
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->dropUnique(['public_id']);
+            $table->dropColumn('public_id');
         });
         Schema::dropIfExists('commission_rules');
         Schema::table('affiliate_profiles', function (Blueprint $table) {

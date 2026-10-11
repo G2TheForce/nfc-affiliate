@@ -20,17 +20,20 @@ Every permission is enforced on the server (route middleware, policies or servic
 | `catalog.manage` | Create and change products and categories | yes |  |  |  |  |  |
 | `orders.view` | View orders and masked customer details | yes | yes | yes | yes |  |  |
 | `orders.manage` | Cancel unpaid orders (reason required) | yes |  |  |  |  |  |
+| `payments.confirm` | Confirm a received payment with its reference | yes |  | yes |  |  |  |
+| `refunds.record` | Record a completed refund (reverses commission) | yes |  | yes |  |  |  |
 | `attribution.view` | View order attribution | yes | yes | yes | yes |  |  |
 | `attribution.manual` | Manually attribute an order (reason required) | yes | yes |  |  |  |  |
 | `commissions.view` | View commissions and the ledger | yes | yes | yes |  |  |  |
-| `commissions.adjust` | Create compensating commission adjustments | yes |  | yes |  |  |  |
+| `commissions.adjust` | Propose compensating commission adjustments | yes |  | yes |  |  |  |
+| `commissions.approve` | Approve adjustments made by someone else; release approved commissions | yes |  | yes |  |  |  |
 | `payouts.view` | View payout requests | yes | yes | yes |  |  |  |
 | `payouts.review` | Approve or reject payout requests | yes |  | yes |  |  |  |
 | `payouts.mark_paid` | Confirm a payout as paid with a reference | yes |  | yes |  |  |  |
 | `reconciliation.view` | View reconciliation results | yes |  | yes |  |  |  |
 | `reports.view` | View reports | yes | yes | yes |  |  |  |
 | `reports.export` | Export reports (audited) | yes |  | yes |  |  |  |
-| `fraud.review` | Review and resolve fraud flags | yes | yes |  |  |  |  |
+| `fraud.review` | Review fraud flags; hold, release or void commissions | yes | yes |  |  |  |  |
 | `affiliate.portal` | Use the affiliate dashboard (own records only) | yes |  |  |  | yes |  |
 | `affiliate.payouts.request` | Request a payout of own available balance | yes |  |  |  | yes |  |
 | `customer.portal` | Use the customer account area | yes |  |  |  | yes | yes |

@@ -45,8 +45,11 @@ return [
 
     'commissions' => [
         'holding_period_days' => (int) env('AFFILIATE_HOLDING_PERIOD_DAYS', 14),
-        'include_shipping' => false,
-        'include_tax' => false,
+        // true: commissions join the available balance as soon as the holding
+        // period passes. false: finance releases approved commissions by hand.
+        'auto_release' => (bool) env('AFFILIATE_COMMISSION_AUTO_RELEASE', true),
+        // Upper bound for a percentage rule (5000 = 50%), a guard against typos.
+        'max_rate_bp' => (int) env('AFFILIATE_COMMISSION_MAX_RATE_BP', 5000),
         'multi_level_enabled' => false,
     ],
 

@@ -32,6 +32,10 @@ class CommissionRule extends Model
         return [
             'scope' => CommissionRuleScope::class,
             'kind' => CommissionRuleKind::class,
+            'commission_plan_id' => 'integer',
+            'product_category_id' => 'integer',
+            'product_id' => 'integer',
+            'affiliate_profile_id' => 'integer',
             'rate_bp' => 'integer',
             'fixed_minor' => 'integer',
             'starts_at' => 'datetime',

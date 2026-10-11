@@ -3,6 +3,7 @@
 namespace App\Domain\Referrals;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Commissions\CommissionService;
 use App\Enums\AttributionSource;
 use App\Enums\AttributionStatus;
 use App\Enums\OrderStatus;
@@ -17,7 +18,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Staff assign an order to an affiliate, e.g. when a customer says they were
  * referred but the cookie was lost. A reason is required and the previous
- * attribution is kept in the audit log.
+ * attribution is kept in the audit log. On a paid order the commission is
+ * created at once; once commissions exist the attribution is fixed, and
+ * corrections go through void and adjustments instead.
  */
 class ManualAttributionService
 {
@@ -25,6 +28,7 @@ class ManualAttributionService
         private readonly AttributionResolver $resolver,
         private readonly ReferralEventRecorder $events,
         private readonly AuditLogger $audit,
+        private readonly CommissionService $commissions,
     ) {}
 
     public function assign(Order $order, AffiliateProfile $affiliate, User $actor, string $reason): Order
@@ -32,8 +36,11 @@ class ManualAttributionService
         return DB::transaction(function () use ($order, $affiliate, $actor, $reason) {
             $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-            if (in_array($locked->status, [OrderStatus::Cancelled, OrderStatus::Refunded], true)) {
+            if (in_array($locked->status, [OrderStatus::Cancelled, OrderStatus::Refunded, OrderStatus::PartiallyRefunded], true)) {
                 throw ValidationException::withMessages(['order' => 'Cancelled or refunded orders cannot be attributed.']);
+            }
+            if ($locked->commissions()->exists()) {
+                throw ValidationException::withMessages(['order' => 'Commission has already been created for this order. Void it and use an adjustment instead.']);
             }
             if (! $affiliate->status->isEligibleToEarn()) {
                 throw ValidationException::withMessages(['affiliate_id' => 'This affiliate is not approved.']);
@@ -75,6 +82,10 @@ class ManualAttributionService
                 'previous_affiliate' => $previousAffiliate,
                 'previous_source' => $previousSource,
             ], $actor);
+
+            if ($locked->status->isPaid()) {
+                $this->commissions->createForOrder($locked->load('coupon'), $actor);
+            }
 
             return $locked;
         });
