@@ -28,7 +28,7 @@ class CommissionRuleService
     {
         return DB::transaction(function () use ($data, $actor) {
             $rule = new CommissionRule;
-            $rule->forceFill($this->normalise($data) + ['version' => 1, 'created_by' => $actor->id, 'updated_by' => $actor->id]);
+            $rule->forceFill($this->normalise($data + ['is_active' => true]) + ['version' => 1, 'created_by' => $actor->id, 'updated_by' => $actor->id]);
             $this->assertValid($rule);
             $rule->save();
 
