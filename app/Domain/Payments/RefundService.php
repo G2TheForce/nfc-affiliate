@@ -62,7 +62,7 @@ class RefundService
                 $amount = (int) $row['amount_minor'];
                 $left = $line->line_total_minor - (int) $line->refunded_minor;
                 if ($amount < 1 || $amount > $left) {
-                    throw ValidationException::withMessages(["items.$i.amount_minor" => "Refund for {$line->sku} must be between 1 and {$left} (what is left of the line)."]);
+                    throw ValidationException::withMessages(["items.$i.amount_minor" => "Refund for {$line->sku} can be at most ".self::money($left, $locked->currency).' (what is left of the line).']);
                 }
                 $requested[$line->id] = $amount;
             }
@@ -70,7 +70,7 @@ class RefundService
             $shipping = (int) ($data['shipping_minor'] ?? 0);
             $shippingLeft = $locked->shipping_minor - (int) Refund::query()->where('order_id', $locked->id)->sum('shipping_minor');
             if ($shipping < 0 || $shipping > $shippingLeft) {
-                throw ValidationException::withMessages(['shipping_minor' => "The delivery refund must be between 0 and {$shippingLeft}."]);
+                throw ValidationException::withMessages(['shipping_minor' => 'The delivery refund can be at most '.self::money($shippingLeft, $locked->currency).'.']);
             }
 
             $total = array_sum($requested) + $shipping;
@@ -117,5 +117,10 @@ class RefundService
 
             return ['refund' => $refund, 'replayed' => false, 'commission_reversed_minor' => $reversed];
         });
+    }
+
+    private static function money(int $minor, string $currency): string
+    {
+        return $currency.' '.number_format($minor / 100, 2);
     }
 }

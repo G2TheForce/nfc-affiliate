@@ -5,6 +5,7 @@ import { Alert, Button, Card, Modal, Spinner, StatusBadge, TextArea } from '@/co
 import { api, ApiError } from '@/lib/api';
 import { channelLabel, formatDateTime } from '@/lib/format';
 import { useFormErrors } from '@/lib/useFormErrors';
+import { AffiliateEarningsCard } from './AffiliateEarningsCard';
 
 interface Detail {
     id: string;
@@ -14,6 +15,7 @@ interface Detail {
     display_name: string;
     user: { id: string; name: string; email: string; phone: string | null; email_verified: boolean; registered_at: string };
     referral_code: string | null;
+    commission_plan: { id: string; name: string } | null;
     referral_slug: string | null;
     country_code: string;
     city: string | null;
@@ -120,6 +122,8 @@ export default function AffiliateDetailPage() {
                     </dl>
                 </Card>
             </div>
+
+            <AffiliateEarningsCard affiliateId={detail.id} plan={detail.commission_plan} />
 
             <Card title="Promotion plan">
                 <dl className="grid grid-cols-1 gap-3 text-sm">

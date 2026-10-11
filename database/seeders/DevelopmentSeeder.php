@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Commissions\CommissionRuleService;
 use App\Enums\AffiliateStatus;
 use App\Enums\Role;
 use App\Models\AffiliateProfile;
 use App\Models\AffiliateTermsVersion;
+use App\Models\CommissionRule;
 use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -87,6 +89,14 @@ class DevelopmentSeeder extends Seeder
             Coupon::firstOrCreate(['code' => 'DEVCREATOR10'], [
                 'affiliate_profile_id' => $approved->id, 'discount_type' => 'percent', 'discount_value' => 1000,
             ]);
+        }
+
+        // Sample commission rules: 10% for everyone, a fixed amount on review stands.
+        if (! CommissionRule::query()->exists()) {
+            $admin = User::where('email', 'super-admin@dev.invalid')->first() ?? User::query()->orderBy('id')->firstOrFail();
+            $rules = app(CommissionRuleService::class);
+            $rules->create(['name' => '[DEV] Global default 10%', 'scope' => 'global', 'kind' => 'percent', 'rate_bp' => 1000, 'starts_at' => now()->subYear()], $admin);
+            $rules->create(['name' => '[DEV] Review stands NPR 150 each', 'scope' => 'category', 'product_category_id' => $stands->id, 'kind' => 'fixed', 'fixed_minor' => 15000, 'starts_at' => now()->subYear()], $admin);
         }
 
         $this->command?->warn('Development users created with password DevPassword123 (local use only).');

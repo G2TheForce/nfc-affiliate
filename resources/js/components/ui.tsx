@@ -178,6 +178,13 @@ const STATUS_STYLES: Record<string, string> = {
     rejected: 'bg-danger/10 text-danger',
     suspended: 'bg-danger/10 text-danger',
     deactivated: 'bg-line text-muted',
+    available: 'bg-brand-50 text-brand-700',
+    reversed: 'bg-line text-muted',
+    partially_refunded: 'bg-warning/10 text-warning',
+    pending_approval: 'bg-warning/10 text-warning',
+    on_hold: 'bg-danger/10 text-danger',
+    clean: 'bg-success/10 text-success',
+    drift: 'bg-danger/10 text-danger',
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {

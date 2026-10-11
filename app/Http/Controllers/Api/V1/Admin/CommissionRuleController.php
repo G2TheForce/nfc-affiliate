@@ -40,7 +40,8 @@ class CommissionRuleController extends Controller
                 ->with(self::RELATIONS)
                 ->when($filters['scope'] ?? null, fn ($q, $s) => $q->where('scope', $s))
                 ->when(array_key_exists('active', $filters) && $filters['active'] !== null, fn ($q) => $q->where('is_active', (bool) $filters['active']))
-                ->orderBy('scope')
+                // Same order as precedence, so the list reads top to bottom like the resolver.
+                ->orderByRaw("CASE scope WHEN 'affiliate' THEN 1 WHEN 'product' THEN 2 WHEN 'category' THEN 3 WHEN 'plan' THEN 4 ELSE 5 END")
                 ->orderByDesc('starts_at')
                 ->paginate(100)
         );

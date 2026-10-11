@@ -60,6 +60,14 @@ Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`,
 - Retention: the `affiliate:prune-referral-data` command runs daily from the scheduler. Run `php artisan schedule:work` locally, or the cron entry in production.
 - Full decision record: [ADR 0007](adr/0007-store-and-referral-tracking.md).
 
+## Commission accounting (Phase 4)
+
+- Payments: `ManualPaymentService` records a staff-verified payment with its reference and marks the order paid. `RefundService` records completed refunds per line. Both lock the order row and are idempotent on their reference.
+- Commissions: `CommissionService` creates one commission per order line when the order is paid (`RuleResolver` picks the rule, `CommissionMath` calculates in integer paisa) and reverses the refunded share. `CommissionLifecycle` approves, releases, holds and voids. `CommissionMaturation` is the scheduled step.
+- Ledger: `CommissionLedger` is the only writer of `commission_ledger_entries` and computes balances as sums. `AdjustmentService` handles maker-checker corrections. `ReconciliationService` re-derives the ledger nightly and records drift.
+- Scheduler: `affiliate:mature-commissions` hourly, `affiliate:reconcile-commissions` daily at 03:30 Nepal time.
+- Full decision record: [ADR 0008](adr/0008-commission-accounting.md).
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -80,6 +88,7 @@ Validation errors use Laravel's standard shape:
 | verification link and resend | 6/min |
 | `store` (catalog, quote, referral) | 60/min per IP |
 | `checkout` (place order) | 10/min per IP |
+| on-demand reconciliation | 6/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
 ## Security headers
@@ -97,13 +106,15 @@ app/Domain/Audit          AuditLogger
 app/Domain/Affiliates     Membership lifecycle
 app/Domain/Store          Checkout, coupons, order numbers, cancellation
 app/Domain/Referrals      Click tracking, attribution, events, reports
+app/Domain/Payments       Manual payment confirmation, refunds
+app/Domain/Commissions    Rules, calculation, lifecycle, ledger, adjustments, reconciliation
 app/Enums                 Role, Permission, UserStatus
 app/Support/Authorization PermissionMatrix
 app/Http/Controllers/Api/V1/{Auth,Admin}
 app/Http/Requests/Auth    Form Requests
 app/Http/Resources        API Resources (public_id only, no secrets)
 app/Notifications/Auth    Queued verification and reset emails
-app/Console/Commands      affiliate:create-admin, affiliate:permissions-matrix
+app/Console/Commands      affiliate:create-admin, affiliate:permissions-matrix, retention, commission jobs
 resources/js              React app (auth pages, account area, staff area)
 docs/                     Plans, ADRs, API spec, guides
 ```
