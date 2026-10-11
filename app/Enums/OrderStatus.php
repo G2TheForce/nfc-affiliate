@@ -4,13 +4,14 @@ namespace App\Enums;
 
 /**
  * Paid and refunded are set only from verified payment or refund records
- * (Phase 4 and 7), never from a browser redirect.
+ * (manual confirmation now, provider webhooks in Phase 7), never from a browser redirect.
  */
 enum OrderStatus: string
 {
     case PendingPayment = 'pending_payment';
     case Paid = 'paid';
     case Cancelled = 'cancelled';
+    case PartiallyRefunded = 'partially_refunded';
     case Refunded = 'refunded';
 
     public function label(): string
@@ -19,7 +20,14 @@ enum OrderStatus: string
             self::PendingPayment => 'Awaiting payment',
             self::Paid => 'Paid',
             self::Cancelled => 'Cancelled',
+            self::PartiallyRefunded => 'Partly refunded',
             self::Refunded => 'Refunded',
         };
+    }
+
+    /** Statuses in which money was received and can be refunded. */
+    public function isPaid(): bool
+    {
+        return in_array($this, [self::Paid, self::PartiallyRefunded], true);
     }
 }

@@ -29,12 +29,15 @@ enum Permission: string
     // Orders and attribution
     case OrdersView = 'orders.view';
     case OrdersManage = 'orders.manage';
+    case PaymentsConfirm = 'payments.confirm';
+    case RefundsRecord = 'refunds.record';
     case AttributionView = 'attribution.view';
     case AttributionManual = 'attribution.manual';
 
     // Finance
     case CommissionsView = 'commissions.view';
     case CommissionsAdjust = 'commissions.adjust';
+    case CommissionsApprove = 'commissions.approve';
     case PayoutsView = 'payouts.view';
     case PayoutsReview = 'payouts.review';
     case PayoutsMarkPaid = 'payouts.mark_paid';
@@ -69,17 +72,20 @@ enum Permission: string
             self::CatalogManage => 'Create and change products and categories',
             self::OrdersView => 'View orders and masked customer details',
             self::OrdersManage => 'Cancel unpaid orders (reason required)',
+            self::PaymentsConfirm => 'Confirm a received payment with its reference',
+            self::RefundsRecord => 'Record a completed refund (reverses commission)',
             self::AttributionView => 'View order attribution',
             self::AttributionManual => 'Manually attribute an order (reason required)',
             self::CommissionsView => 'View commissions and the ledger',
-            self::CommissionsAdjust => 'Create compensating commission adjustments',
+            self::CommissionsAdjust => 'Propose compensating commission adjustments',
+            self::CommissionsApprove => 'Approve adjustments made by someone else; release approved commissions',
             self::PayoutsView => 'View payout requests',
             self::PayoutsReview => 'Approve or reject payout requests',
             self::PayoutsMarkPaid => 'Confirm a payout as paid with a reference',
             self::ReconciliationView => 'View reconciliation results',
             self::ReportsView => 'View reports',
             self::ReportsExport => 'Export reports (audited)',
-            self::FraudReview => 'Review and resolve fraud flags',
+            self::FraudReview => 'Review fraud flags; hold, release or void commissions',
             self::AffiliatePortal => 'Use the affiliate dashboard (own records only)',
             self::AffiliatePayoutsRequest => 'Request a payout of own available balance',
             self::CustomerPortal => 'Use the customer account area',

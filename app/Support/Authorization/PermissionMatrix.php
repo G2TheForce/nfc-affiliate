@@ -32,8 +32,8 @@ final class PermissionMatrix
             Role::FinanceManager->value => [
                 P::AdminAccess,
                 P::AffiliatesView,
-                P::OrdersView, P::AttributionView,
-                P::CommissionsView, P::CommissionsAdjust,
+                P::OrdersView, P::AttributionView, P::PaymentsConfirm, P::RefundsRecord,
+                P::CommissionsView, P::CommissionsAdjust, P::CommissionsApprove,
                 P::PayoutsView, P::PayoutsReview, P::PayoutsMarkPaid,
                 P::ReconciliationView,
                 P::ReportsView, P::ReportsExport,
