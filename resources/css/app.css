@@ -20,6 +20,11 @@
     --color-success: #15803d;
     --color-warning: #b45309;
     --color-danger: #b91c1c;
+
+    /* Chart series, in fixed order (validated for colour vision deficiency on white). */
+    --color-chart-1: #2a78d6;
+    --color-chart-2: #eb6834;
+    --color-chart-3: #1baf7a;
 }
 
 @layer base {

@@ -215,6 +215,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
                 Route::get('dashboard', [AdminDashboardController::class, 'admin'])
                     ->middleware('permission:'.Permission::ReportsView->value)->name('dashboard');
+                Route::get('dashboard/filter-options', [AdminDashboardController::class, 'filterOptions'])
+                    ->middleware('permission:'.Permission::ReportsView->value)->name('dashboard.filter-options');
                 Route::get('finance/dashboard', [AdminDashboardController::class, 'finance'])
                     ->middleware('permission:'.Permission::PayoutsView->value.'|'.Permission::CommissionsView->value)->name('finance.dashboard');
                 Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');

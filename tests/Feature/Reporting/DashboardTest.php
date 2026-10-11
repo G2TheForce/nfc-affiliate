@@ -149,4 +149,22 @@ class DashboardTest extends TestCase
         $this->actingAs($s['a']->user)->getJson('/api/v1/admin/dashboard')->assertForbidden();
         $this->actingAs($this->userWithRole(Role::Customer))->getJson('/api/v1/affiliate/dashboard')->assertForbidden();
     }
+
+    public function test_filter_options_search_affiliates_and_list_products_and_coupons(): void
+    {
+        $s = $this->scenario();
+        $manager = $this->userWithRole(Role::AffiliateManager);
+
+        $data = $this->actingAs($manager)->getJson('/api/v1/admin/dashboard/filter-options?q='.urlencode($s['a']->referral_code))->assertOk()->json('data');
+
+        $this->assertSame([$s['a']->public_id], collect($data['affiliates'])->pluck('id')->all());
+        $this->assertCount(2, $data['products']);
+        $this->assertSame(['ASHA10'], collect($data['coupons'])->pluck('label')->all());
+
+        // The chosen affiliate stays listed even when the search does not match it.
+        $data = $this->actingAs($manager)->getJson('/api/v1/admin/dashboard/filter-options?q=zzz&affiliate_id='.$s['b']->public_id)->assertOk()->json('data');
+        $this->assertSame([$s['b']->public_id], collect($data['affiliates'])->pluck('id')->all());
+
+        $this->actingAs($this->userWithRole(Role::Support))->getJson('/api/v1/admin/dashboard/filter-options')->assertForbidden();
+    }
 }

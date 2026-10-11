@@ -78,7 +78,7 @@ export function OrderMoneyPanels({ order, onChange }: { order: AdminOrder; onCha
     return (
         <>
             {notice && <Alert tone="success">{notice}</Alert>}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card title="Payment">
                     {order.payment ? (
                         <dl className="space-y-1 text-sm">

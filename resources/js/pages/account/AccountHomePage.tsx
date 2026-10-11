@@ -3,7 +3,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { Card } from '@/components/ui';
 
 export default function AccountHomePage() {
-    const { user } = useAuth();
+    const { user, can } = useAuth();
 
     return (
         <div className="space-y-6">
@@ -12,8 +12,11 @@ export default function AccountHomePage() {
                 <p className="text-sm text-muted">
                     Promote our NFC cards and earn a commission on eligible paid orders from your referrals.
                 </p>
-                <Link to="/account/affiliate" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
-                    {user?.roles.includes('affiliate') ? 'Open your affiliate area' : 'Apply or check your application'}
+                <Link
+                    to={can('affiliate.portal') ? '/account/affiliate/dashboard' : '/account/affiliate'}
+                    className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline"
+                >
+                    {can('affiliate.portal') ? 'Open your affiliate dashboard' : user?.roles.includes('affiliate') ? 'Open your affiliate area' : 'Apply or check your application'}
                 </Link>
             </Card>
             <Card title="Your account">

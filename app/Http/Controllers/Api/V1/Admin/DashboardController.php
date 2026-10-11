@@ -148,6 +148,38 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Choices for the dashboard and report filters. Products and coupons are
+     * few, so all are listed; affiliates are searched by name or code.
+     */
+    public function filterOptions(Request $request): array
+    {
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:60'], 'affiliate_id' => ['nullable', 'string', 'ulid']]);
+        $q = trim((string) ($data['q'] ?? ''));
+        $like = '%'.addcslashes($q, '%_\\').'%';
+        $statuses = [AffiliateStatus::Approved->value, AffiliateStatus::Suspended->value, AffiliateStatus::Deactivated->value];
+
+        $affiliates = AffiliateProfile::query()->whereIn('status', $statuses)
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w->where('display_name', 'like', $like)->orWhere('referral_code', 'like', $like)))
+            ->orderBy('display_name')->limit(20)
+            ->get(['public_id', 'display_name', 'referral_code']);
+        // Keep the affiliate already chosen in the list, so the picker can show it.
+        if (! empty($data['affiliate_id']) && ! $affiliates->contains('public_id', $data['affiliate_id'])) {
+            $chosen = AffiliateProfile::query()->where('public_id', $data['affiliate_id'])->first(['public_id', 'display_name', 'referral_code']);
+            if ($chosen) {
+                $affiliates->prepend($chosen);
+            }
+        }
+
+        return ['data' => [
+            'affiliates' => $affiliates->map(fn (AffiliateProfile $p) => ['id' => $p->public_id, 'label' => "{$p->display_name} ({$p->referral_code})"])->values(),
+            'products' => Product::query()->orderBy('name')->limit(500)->get(['public_id', 'name'])
+                ->map(fn (Product $p) => ['id' => $p->public_id, 'label' => $p->name]),
+            'coupons' => Coupon::query()->orderBy('code')->limit(500)->get(['public_id', 'code'])
+                ->map(fn (Coupon $c) => ['id' => $c->public_id, 'label' => $c->code]),
+        ]];
+    }
+
     public static function filters(Request $request): Filters
     {
         $data = $request->validate([
