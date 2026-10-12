@@ -35,6 +35,8 @@ With Docker: `docker compose -f compose.production.yml ps` should show five heal
 
 ## Staff accounts
 
+A Super Administrator adds staff, changes their role, and disables and re-enables them on the **Staff** screen in the staff area ([admin guide 1.4](admin-guide.md#14-staff-accounts-super-administrator)). New staff get an email to set their own password. The commands below still work and follow the same rules. Use them for the first Super Administrator, or when nobody can sign in.
+
 ```bash
 php artisan affiliate:create-staff --role=finance_manager     # or affiliate_manager, support
 php artisan affiliate:create-admin --additional                # another Super Administrator
@@ -42,7 +44,25 @@ php artisan affiliate:set-user-status person@example.com disabled --reason="Left
 php artisan affiliate:set-user-status person@example.com active --reason="Returned"
 ```
 
-Disabling signs the person out everywhere: their API tokens and sessions are deleted, and every request is refused while the account is disabled. The last active Super Administrator cannot be disabled. A staff member can be given a different role only by disabling the old account and creating a new one, so that the audit log keeps who did what under which role.
+Disabling signs the person out everywhere: their API tokens and sessions are deleted, and every request is refused while the account is disabled. The last active Super Administrator cannot be disabled or moved to another role, and on the screen nobody can disable themselves or change their own role. Roles are changed with **Change role** on the Staff screen; there is no command for it. A role change also signs the person out everywhere, and the audit log keeps the old and new role.
+
+If a staff invitation email does not arrive, check the queue worker and failed jobs (below), then press **Resend invitation** on the Staff screen. Someone who has already signed in uses **Forgot password?** instead.
+
+## Programme settings and `.env`
+
+The 18 programme settings on the **Settings** screen (attribution, holding period and auto-release, payout minimum and separate payer, delivery charge, fraud thresholds and the reapply wait) can be changed by a Super Administrator without the server. The matching `.env` values (`AFFILIATE_ATTRIBUTION_*`, `AFFILIATE_HOLDING_PERIOD_DAYS`, `AFFILIATE_PAYOUT_*`, `STORE_SHIPPING_FLAT_MINOR`, `AFFILIATE_FRAUD_*` and so on) are now only defaults:
+
+- A value saved on the screen wins over `.env`. Changing `.env` has no effect on a setting that has been saved on the screen until someone presses **Use default** there.
+- Saved values live in the `system_settings` table, so they are in the database backup.
+- After a save, the change applies to the next web request. Queue workers restart by themselves after their current job, as with `php artisan queue:restart`. Nothing else is needed.
+- The cache must be shared by every app server (`CACHE_STORE=database` or `redis`), because saved settings are cached there.
+- Who changed what, and from what to what, is in the **Audit log** (`setting.changed`, `setting.reset`).
+
+Payment keys, mail, `APP_*`, the business timezone and currency, retention periods and upload limits are not on the screen. They stay in `.env` and still need `php artisan config:cache` and `php artisan queue:restart` after a change.
+
+## Product photos
+
+Product photos are stored in `storage/app/private/products` (the private `local` disk) and served at `/media/products/<file>`. Back the folder up with the marketing folder ([backup-and-restore.md](backup-and-restore.md)). With Docker they are in the `app-storage` volume. A replaced or removed photo is deleted from the folder straight away. If the folder is lost, the products show no photo until staff upload them again.
 
 ## Common problems
 
@@ -51,7 +71,7 @@ Disabling signs the person out everywhere: their API tokens and sessions are del
 1. `supervisorctl status`: is the worker running? If not, `supervisorctl start affiliate-worker`.
 2. `php artisan queue:failed`: look at the error. A mail provider problem shows as an SMTP or connection error.
 3. Fix the cause, then `php artisan queue:retry all`. Each notification already retries 5 times over about 20 minutes before failing.
-4. After changing `.env`: `php artisan config:cache` and `php artisan queue:restart`.
+4. After changing `.env`: `php artisan config:cache` and `php artisan queue:restart`. Settings changed on the **Settings** screen need neither.
 
 ### Failed jobs
 
@@ -83,7 +103,7 @@ Delete old files in `storage/logs` and old backups that are already copied off t
 
 ### Suspected break-in or leaked password
 
-1. Disable the affected staff account (above). A password reset also revokes all of that person's tokens and sessions.
+1. Disable the affected staff account (above). A password reset also revokes all of that person's tokens and sessions, and a password change on **My profile** revokes all but the one in use.
 2. Check the **Audit log** for what the account did, from which (hashed) address and when.
 3. If `.env` may have leaked, rotate in this order:
    - database passwords

@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /** Staff accounts (admins.manage). */
 class StaffController extends Controller
@@ -50,9 +51,25 @@ class StaffController extends Controller
     public function resendInvitation(Request $request, User $user): array
     {
         $this->assertStaff($user);
+        if ($user->last_login_at !== null) {
+            throw ValidationException::withMessages(['user' => 'This person has already signed in. They can use "Forgot password" if they need a new one.']);
+        }
         $this->accounts->sendInvitation($user, $request->user());
 
         return ['data' => $this->present($user->load('roles'), $request->user())];
+    }
+
+    public function role(Request $request, User $user): array
+    {
+        $this->assertStaff($user);
+        $staffRoles = array_values(array_filter(Role::cases(), fn (Role $r) => $r->isStaff()));
+        $data = $request->validate([
+            'role' => ['required', Rule::enum(Role::class)->only($staffRoles)],
+        ]);
+
+        $this->accounts->changeRole($user, Role::from($data['role']), $request->user());
+
+        return ['data' => $this->present($user->refresh()->load('roles'), $request->user())];
     }
 
     public function status(Request $request, User $user): array

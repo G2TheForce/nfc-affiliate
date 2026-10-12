@@ -198,6 +198,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('staff', [StaffController::class, 'store'])->middleware([$admins, 'throttle:20,1'])->name('staff.store');
                 Route::post('staff/{user}/invitation', [StaffController::class, 'resendInvitation'])->whereUlid('user')->middleware([$admins, 'throttle:10,1'])->name('staff.invitation');
                 Route::post('staff/{user}/status', [StaffController::class, 'status'])->whereUlid('user')->middleware($admins)->name('staff.status');
+                Route::post('staff/{user}/role', [StaffController::class, 'role'])->whereUlid('user')->middleware($admins)->name('staff.role');
 
                 $settings = 'permission:'.Permission::SettingsManage->value;
                 Route::get('settings', [SettingsController::class, 'index'])->middleware($settings)->name('settings.index');

@@ -63,6 +63,42 @@ class StaffAccounts
     }
 
     /**
+     * Swaps the person's staff role. Their past actions stay in the audit log
+     * under their name; this entry records when the role changed. Nobody can
+     * change their own role, and the last active super administrator keeps it.
+     */
+    public function changeRole(User $user, Role $role, User $actor): bool
+    {
+        if ($actor->is($user)) {
+            throw ValidationException::withMessages(['role' => 'You cannot change your own role.']);
+        }
+        if ($user->status !== UserStatus::Active) {
+            throw ValidationException::withMessages(['role' => 'Re-enable the account before changing its role.']);
+        }
+        $current = collect(Role::cases())->first(fn (Role $r) => $r->isStaff() && $user->hasRole($r->value));
+        if ($current === $role) {
+            return false;
+        }
+        if ($current === Role::SuperAdmin
+            && User::role(Role::SuperAdmin->value)->where('status', UserStatus::Active->value)->whereKeyNot($user->getKey())->doesntExist()) {
+            throw ValidationException::withMessages(['role' => 'This is the only active super administrator. Make someone else a super administrator first.']);
+        }
+
+        DB::transaction(function () use ($user, $role, $current, $actor) {
+            if ($current) {
+                $user->removeRole($current->value);
+            }
+            $user->assignRole($role->value);
+            // A new role means new permissions: sign them out so nothing runs on the old ones.
+            $user->tokens()->delete();
+            DB::table('sessions')->where('user_id', $user->getKey())->delete();
+            $this->audit->log('admin.staff_role_changed', $user, ['from' => $current?->value, 'to' => $role->value], $actor);
+        });
+
+        return true;
+    }
+
+    /**
      * Disabling signs the account out everywhere. The last active super
      * administrator cannot be disabled, and nobody can disable themselves.
      */

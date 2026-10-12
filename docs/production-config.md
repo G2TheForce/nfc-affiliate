@@ -15,15 +15,25 @@ Settings to review before going live. The full installation steps are in [deploy
 | `SANCTUM_STATEFUL_DOMAINS` | `<domain>,www.<domain>` (no localhost) | Only your site can use the session cookie |
 | `SANCTUM_EXPIRATION` | `43200` (30 days, in minutes) | Mobile and API tokens expire |
 | `TRUSTED_PROXIES` | the load balancer's IP or CIDR, or `*` when the app is reachable only through the proxy | Real client IPs for rate limits and audit; HTTPS detection for HSTS |
-| `QUEUE_CONNECTION` / `CACHE_STORE` | `database` (or `redis`) | The cache must be shared by all app servers, because scheduler locks and rate limits use it |
+| `QUEUE_CONNECTION` / `CACHE_STORE` | `database` (or `redis`) | The cache must be shared by all app servers, because scheduler locks, rate limits and saved programme settings use it |
 | `MAIL_*` | your provider, `MAIL_SCHEME=smtps` | Receipts, shipping and finance alerts |
 | `ESEWA_*` / `KHALTI_*` | `*_MODE=production` and production keys, `*_ENABLED=true` only when tested | Sandbox mode is refused in production |
 | `AFFILIATE_BUSINESS_TIMEZONE` / `AFFILIATE_CURRENCY` | `Asia/Kathmandu` / `NPR` | |
+
+### Which value wins
+
+Most settings come only from `.env`, through the files in `config/`. The 18 programme settings on the **Settings** screen are different (attribution, holding period and auto-release, payout minimum and separate payer, delivery charge, reapply wait and the `AFFILIATE_FRAUD_*` thresholds). For those:
+
+1. A value saved on the Settings screen (a row in `system_settings`) wins.
+2. Otherwise the `.env` value applies.
+3. Otherwise the default in `config/affiliate.php` applies.
+
+So after launch, change these on the screen, not in `.env`. The full list is in `app/Domain/Settings/SettingsRegistry.php`.
 
 ## Processes
 
 - **Scheduler:** one cron line per server: `* * * * * cd /var/www/affiliate && php artisan schedule:run >> /dev/null 2>&1`. Jobs run on one server and recover from a killed run within 10 to 120 minutes. `php artisan schedule:clear-cache` clears a stuck lock immediately.
 - **Queue worker** (under supervisor or systemd): `php artisan queue:work --tries=3 --timeout=60 --max-time=3600`. Run `php artisan queue:restart` on every deploy.
 - **Failed jobs:** check with `php artisan queue:failed`, retry with `queue:retry all`. Failed jobs older than 30 days are pruned daily.
-- **Caches:** on each deploy, run `php artisan config:cache`, `route:cache`, `view:cache` and `event:cache`. All four were checked to work: there are no closures in routes, and no `env()` outside config files.
+- **Caches:** on each deploy, run `php artisan config:cache`, `route:cache`, `view:cache` and `event:cache`. All four were checked to work: there is no `env()` outside config files, and the one route closure (`/media/products/{file}` in `routes/web.php`) can be cached.
 - **PHP:** opcache on. Only `storage/` and `bootstrap/cache` writable by the web user. `.env` mode 640.

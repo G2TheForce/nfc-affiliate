@@ -84,8 +84,12 @@ class ProductController extends Controller
 
         $category->fill($data);
         $changes = $category->getDirty();
-        $category->save();
-        $this->audit->log('product_category.updated', $category, $changes);
+        if ($changes !== []) {
+            DB::transaction(function () use ($category, $changes) {
+                $category->save();
+                $this->audit->log('product_category.updated', $category, $changes);
+            });
+        }
 
         return ['data' => $category->only(['id', 'name', 'slug', 'is_active']) + ['products_count' => $category->products()->count()]];
     }
@@ -103,8 +107,10 @@ class ProductController extends Controller
             throw ValidationException::withMessages(['category' => 'A commission rule uses this category. Hide the category instead.']);
         }
 
-        $this->audit->log('product_category.deleted', $category, $category->only(['name', 'slug']));
-        $category->delete();
+        DB::transaction(function () use ($category) {
+            $category->delete();
+            $this->audit->log('product_category.deleted', $category, $category->only(['name', 'slug']));
+        });
 
         return response()->noContent();
     }

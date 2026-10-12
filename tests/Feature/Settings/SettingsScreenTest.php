@@ -62,6 +62,33 @@ class SettingsScreenTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'setting.reset']);
     }
 
+    public function test_reset_after_config_cache_returns_to_the_env_value_not_the_cached_override(): void
+    {
+        $admin = $this->userWithRole(Role::SuperAdmin);
+        $this->actingAs($admin)->patchJson('/api/v1/admin/settings', ['settings' => [['key' => 'commissions.holding_period_days', 'value' => 21]]])->assertOk();
+
+        // `config:cache` boots the app, so the cached file holds the override
+        // alongside the defaults recorded at boot. Simulate loading that file.
+        $cached = config()->all();
+        $this->assertSame(21, $cached['affiliate']['commissions']['holding_period_days']);
+        $this->assertSame(14, $cached['system_settings_defaults']['commissions.holding_period_days']);
+        config($cached);
+        Cache::flush();
+        app(SystemSettings::class)->apply();
+        $this->assertSame(21, config('affiliate.commissions.holding_period_days'));
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/settings')->assertOk()
+            ->assertJsonFragment(['key' => 'commissions.holding_period_days', 'value' => 21, 'default' => 14]);
+        $this->actingAs($admin)->deleteJson('/api/v1/admin/settings/commissions.holding_period_days')->assertOk();
+        $this->assertSame(14, config('affiliate.commissions.holding_period_days'));
+
+        // Another process booting from the same stale cache also drops the override.
+        config($cached);
+        Cache::flush();
+        app(SystemSettings::class)->apply();
+        $this->assertSame(14, config('affiliate.commissions.holding_period_days'));
+    }
+
     public function test_values_are_checked_against_limits_and_unknown_keys_are_refused(): void
     {
         $admin = $this->userWithRole(Role::SuperAdmin);

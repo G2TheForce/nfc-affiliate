@@ -8,7 +8,7 @@ Everything below is taken from `routes/api.php`, `routes/web.php`, the controlle
 
 - Every endpoint is under `https://<host>/api/v1` (for example `https://store.example/api/v1/auth/login`). Locally the host is `http://localhost:8000`.
 - The version is part of the path (`v1`). Breaking changes will go under a new prefix, and `v1` stays as it is.
-- Send `Accept: application/json` and, on requests with a body, `Content-Type: application/json`. Every `/api/*` response is JSON, errors included (`shouldRenderJsonWhen` in `bootstrap/app.php`). Report exports and marketing material files are the only exceptions: they return a file. Uploading a marketing material is the only request sent as `multipart/form-data` (section 10.3).
+- Send `Accept: application/json` and, on requests with a body, `Content-Type: application/json`. Every `/api/*` response is JSON, errors included (`shouldRenderJsonWhen` in `bootstrap/app.php`). Report exports and marketing material files are the only exceptions: they return a file. Uploading a marketing material (section 10.3) or a product photo (section 11.4) are the only requests sent as `multipart/form-data`.
 - Always send the `Accept` header. The framework's `verified` middleware checks it: with the header, an unverified user gets a JSON 403; without it, they get a 302 redirect to `/verify-email`.
 - Production forces `https` URLs (`URL::forceScheme('https')`).
 - Health check: `GET /up` (outside `/api`).
@@ -34,7 +34,7 @@ Logout (`POST /auth/logout`) ends the session and regenerates the CSRF token. Se
 - Send `device_name` (any string up to 100 characters, for example `"android-pixel-8"`) to `POST /auth/login` or `POST /auth/register`. The response is `{"token": "<id>|<secret>", "token_type": "Bearer", "user": {...}}`. Store the token in secure storage. It cannot be retrieved again.
 - Send `Authorization: Bearer <token>` on every request. Bearer requests do not need CSRF.
 - **Expiry:** tokens expire after `SANCTUM_EXPIRATION` minutes, which defaults to 43200 (30 days). An expired token gets **401**. There is no refresh endpoint, so sign in again. Expired tokens are pruned daily (`sanctum:prune-expired --hours=24`).
-- **Revocation:** `POST /auth/logout` with a bearer token deletes only that token. A password reset (`POST /auth/reset-password`) deletes all of the user's tokens.
+- **Revocation:** `POST /auth/logout` with a bearer token deletes only that token. A password reset (`POST /auth/reset-password`) deletes all of the user's tokens. A password change (`POST /auth/password`, section 11.1) deletes every token except the one that made the request. Disabling an account deletes all its tokens.
 - Each login creates a new token. Reuse the stored token rather than signing in on every app start.
 
 ### 2.3 Account state checks
@@ -116,6 +116,11 @@ Limiters are defined in `AppServiceProvider::configureRateLimiting()` and as `th
 | `POST /store/orders` and `POST /store/orders/{order}/payments` (`checkout`) | 10/min (on top of `store`) | IP |
 | Affiliate application, membership closure, payout request, payout method change | 6/min | user |
 | `POST /affiliate/links` | 30/min | user |
+| `PATCH /auth/me` | 20/min | user |
+| `POST /auth/password` | 6/min | user |
+| `POST /admin/staff` | 20/min | user |
+| `POST /admin/staff/{user}/invitation` | 10/min | user |
+| `POST /admin/products/{product}/image` | 30/min | user |
 | `GET /affiliate/marketing-assets/{asset}/file` | 120/min | user |
 | `POST /admin/marketing-assets` | 30/min | user |
 | Report exports (`exports`) | 10/min | user |
@@ -219,7 +224,53 @@ Staff routes need a verified email, `admin.access` and the permission named in e
 
 `GET /notifications` can now contain `affiliate.referred_order_paid` and `affiliate.commission_reversed` (for affiliates, with `amount_minor` and `currency`) and `fraud.flags_raised` (for staff). The password-changed notice is email only.
 
-## 11. Examples
+## 11. Profile, staff, settings and product photos (1.2.0)
+
+### 11.1 Your own profile and password
+
+Any signed-in user (staff, affiliate or customer) can use these. Neither needs a verified email.
+
+- `PATCH /auth/me` with `name` (2 to 120) and/or `phone` (E.164 with the country code, for example `+9779812345678`, or `null` to remove it). Other fields are ignored: email, roles and status cannot be changed here. Returns `{"data": User}`. A change is audited as `user.profile_updated` with the field names only, never the values.
+- `POST /auth/password` with `current_password`, `password` and `password_confirmation`. The new password follows the registration rules and must differ from the current one. A wrong current password gets 422 on `current_password`. On success the password is changed, every other session and API token is deleted (the one making the request is kept; a cookie session gets a new session id), a "Your password was changed" email is queued, and the change is audited as `auth.password_changed`. Returns `{"data": User}`.
+
+There is no endpoint to change an email address. It is changed by support, because the address is how an account is recovered.
+
+### 11.2 Staff accounts
+
+All need `admins.manage` (Super Administrator only). Staff are addressed by their user public id.
+
+- `GET /admin/staff` returns `{"data": [StaffMember], "roles": [{value, label}]}`. Each member has `id`, `name`, `email`, `role`, `role_label`, `status`, `last_login_at`, `created_at` and `is_you`.
+- `POST /admin/staff` with `name` (2 to 120), `email` (unused by any account) and `role` (`super_admin`, `affiliate_manager`, `finance_manager` or `support`). Returns **201**. The account starts with a verified email and a random password nobody knows, and a "Set your password" email is queued. The link is a normal password reset link to the web app's `/reset-password` page, valid for 60 minutes. Audited as `admin.staff_created` with `via: "screen"`. Affiliate and customer roles are refused with 422 on `role`.
+- `POST /admin/staff/{user}/invitation` sends a new link. Someone who has already signed in gets 422 on `user` (they use forgot-password instead), and a disabled account gets 422 on `status`. Audited as `admin.staff_invitation_resent`.
+- `POST /admin/staff/{user}/role` with `role` (`super_admin`, `affiliate_manager`, `finance_manager` or `support`; any other value gets 422). The old staff role is removed, the new one assigned, and the person's API tokens and sessions are deleted, so they sign in again with the new permissions. Changing your own role, changing a disabled account, or moving the last active Super Administrator to another role, gets 422 on `role`. Asking for the role they already have returns 200 and changes nothing. Audited as `admin.staff_role_changed` with `from` and `to`. Returns `{"data": StaffMember}`.
+- `POST /admin/staff/{user}/status` with `status` (`active` or `disabled`) and `reason` (5 to 500). Disabling deletes the account's API tokens and sessions. You cannot disable yourself, and the last active Super Administrator cannot be disabled (422 on `status`). Audited as `user.status_changed` with `via`, `from`, `to` and `reason`. Asking for the status the account already has returns 200 and changes nothing.
+
+A user without a staff role gets 404 on the last three.
+
+The console commands `affiliate:create-staff`, `affiliate:create-admin` and `affiliate:set-user-status` still work. `affiliate:set-user-status` uses the same rules as the screen and is audited with `via: "console"`.
+
+### 11.3 Programme settings
+
+All need `settings.manage` (Super Administrator only).
+
+- `GET /admin/settings` returns `{"data": [Setting], "currency": "NPR"}` for the 18 settings in `SettingsRegistry`. Each has `key` (a path under `config/affiliate.php`, for example `payouts.minimum_minor`), `group`, `label`, `help`, `type` (`int`, `money`, `bool` or `choice`), `min`, `max`, `choices`, `value` (in force now), `default` (from `.env`), `overridden`, `updated_at` and `updated_by` (a name).
+- `PATCH /admin/settings` with `{"settings": [{"key": "...", "value": ...}]}` (1 to 50 items). `money` values are paisa. If any value is out of range, nothing is saved and the error is under `settings.N.value`. Values that equal the current one are skipped. Each change is audited as `setting.changed` with `key`, `from` and `to`. Returns the same shape as `GET`, plus `changed` (the keys that changed).
+- `DELETE /admin/settings/{key}` removes the override, so the `.env` default applies again. Audited as `setting.reset`. Returns the list. An unknown key is 404.
+
+Changes apply to the next request at once, and queue workers restart after their current job. Settings change future behaviour only: for example a new holding period applies to orders paid afterwards. `GET /store/affiliate-programme` and the other endpoints that report these figures show the value in force.
+
+### 11.4 Product photos and categories
+
+All need `catalog.manage`.
+
+- `POST /admin/products/{product}/image` as `multipart/form-data` with one field, `image`: JPEG, PNG or WebP, detected from the content, up to 5 MB and at most 6,000 pixels on each side. Anything else gets 422 on `image`. It replaces any earlier photo, whose file is deleted. Returns `{"data": Product}`. Audited as `product.image_changed`.
+- `DELETE /admin/products/{product}/image` removes the photo and its file. Audited as `product.image_removed`.
+- Products now carry `image_url` (in the store and admin APIs), or `null`. The address is `https://<host>/media/products/<ULID>.<ext>`, a public web route outside `/api`, with no session or sign-in. Each upload gets a new name, so responses are cached for a year (`Cache-Control: public, max-age=31536000, immutable`). Only files a product currently uses are served; anything else is 404.
+- `GET /admin/categories` now includes hidden categories and `products_count`.
+- `PATCH /admin/categories/{category}` with `name` and/or `is_active`. Sending `slug` gets 422: the slug never changes, so shared shop links keep working. A hidden category is left out of `GET /store/categories`; its products stay in the store. Audited as `product_category.updated` in the same transaction, and only when something changed.
+- `DELETE /admin/categories/{category}` returns 204. It is refused with 422 on `category` while the category has products, past order lines or a commission rule. Deleted and audited as `product_category.deleted` in one transaction.
+
+## 12. Examples
 
 ```bash
 API=https://store.example/api/v1
@@ -295,14 +346,14 @@ curl -s -G "$API/admin/reports/commission-accruals/export" \
 # Affiliates: GET /affiliate/reports/my-statement/export?format=xlsx
 ```
 
-## 12. Endpoint index
+## 13. Endpoint index
 
 Paths are relative to `/api/v1`. Request bodies and response fields are in [`openapi.yaml`](api/openapi.yaml).
 
 | Area | Endpoints |
 |---|---|
 | Auth (public) | `POST auth/register`, `POST auth/login`, `POST auth/forgot-password`, `POST auth/reset-password`, `GET auth/verify-email/{user}/{hash}` |
-| Auth (signed in) | `GET auth/me`, `POST auth/logout`, `POST auth/email/verification-notification` |
+| Auth (signed in) | `GET/PATCH auth/me`, `POST auth/password`, `POST auth/logout`, `POST auth/email/verification-notification` |
 | Notifications | `GET notifications`, `POST notifications/{id}/read`, `POST notifications/read-all` |
 | Store (public) | `GET store/products`, `GET store/products/{slug}`, `GET store/categories`, `GET store/referral`, `GET store/affiliate-programme`, `POST store/cart/quote`, `POST store/orders` |
 | Store payments | `GET store/payment-methods`, `POST store/orders/{order}/payments`, `GET store/orders/{order}/payment-status` |
@@ -311,10 +362,11 @@ Paths are relative to `/api/v1`. Request bodies and response fields are in [`ope
 | Affiliate portal | `GET/POST affiliate/links`, `PATCH affiliate/links/{link}`, `GET affiliate/campaigns`, `GET affiliate/marketing-assets`, `GET affiliate/marketing-assets/{asset}/file`, `GET affiliate/referrals/{summary,orders}`, `GET affiliate/earnings/{summary,commissions,ledger,rates}`, `GET affiliate/dashboard`, `GET affiliate/reports`, `GET affiliate/reports/{report}/export` |
 | Affiliate payouts | `GET affiliate/payouts/summary`, `GET/POST affiliate/payouts`, `POST affiliate/payouts/{payout}/cancel`, `PUT affiliate/payout-method` |
 | Admin: affiliates and terms | `GET admin/affiliates`, `GET admin/affiliates/counts`, `GET admin/affiliates/{affiliate}`, `POST admin/affiliates/{affiliate}/{approve,reject,notes,suspend,reinstate,deactivate,reactivate}`, `GET/POST admin/terms` |
-| Admin: catalog and coupons | `GET/POST admin/products`, `PATCH admin/products/{product}`, `GET/POST admin/categories`, `GET/POST admin/coupons`, `PATCH admin/coupons/{coupon}` |
+| Admin: catalog and coupons | `GET/POST admin/products`, `PATCH admin/products/{product}`, `POST/DELETE admin/products/{product}/image`, `GET/POST admin/categories`, `PATCH/DELETE admin/categories/{category}`, `GET/POST admin/coupons`, `PATCH admin/coupons/{coupon}` |
+| Admin: staff and settings | `GET/POST admin/staff`, `POST admin/staff/{user}/invitation`, `POST admin/staff/{user}/role`, `POST admin/staff/{user}/status`, `GET/PATCH admin/settings`, `DELETE admin/settings/{key}` |
 | Admin: campaigns and marketing | `GET/POST admin/campaigns`, `GET/PATCH admin/campaigns/{campaign}`, `GET/POST admin/marketing-assets`, `PATCH/DELETE admin/marketing-assets/{asset}`, `GET admin/marketing-assets/{asset}/file` |
 | Admin: orders and payments | `GET admin/orders`, `GET admin/orders/{order}`, `POST admin/orders/{order}/{cancel,attribution,payments,refunds,fulfilment,disputes}`, `POST admin/disputes/{dispute}/resolve`, `GET admin/payment-attempts`, `POST admin/payment-attempts/{attempt}/{recheck,resolve}` |
 | Admin: commissions | `GET/POST admin/commission-rules`, `GET admin/commission-rules/preview`, `PATCH admin/commission-rules/{rule}`, `GET/POST admin/commission-plans`, `PATCH admin/commission-plans/{plan}`, `POST admin/affiliates/{affiliate}/plan`, `GET admin/affiliates/{affiliate}/ledger`, `GET admin/commissions`, `GET admin/commissions/summary`, `GET admin/commissions/{commission}`, `POST admin/commissions/{commission}/{hold,release-hold,void,release}`, `GET admin/fraud-flags`, `POST admin/fraud-flags/{flag}/review`, `GET/POST admin/adjustments`, `POST admin/adjustments/{adjustment}/{approve,reject}`, `GET/POST admin/reconciliation` |
 | Admin: payouts | `GET admin/payouts`, `GET admin/payouts/summary`, `GET admin/payouts/{payout}`, `POST admin/payouts/{payout}/{approve,reject,mark-paid,mark-failed}` |
 | Admin: dashboards and reports | `GET admin/dashboard`, `GET admin/dashboard/filter-options`, `GET admin/finance/dashboard`, `GET admin/reports`, `GET admin/reports/{report}`, `GET admin/reports/{report}/export`, `GET admin/referrals/summary`, `GET admin/audit-logs`, `GET admin/ping` |
-| Web (not API) | `GET /ref/{code}/{link?}` (referral redirect, records a click and sets the `nfc_ref` cookie); `/payments/esewa/return`, `/payments/esewa/failure/{attempt}`, `/payments/khalti/return` (providers only) |
+| Web (not API) | `GET /ref/{code}/{link?}` (referral redirect, records a click and sets the `nfc_ref` cookie); `GET /media/products/{file}` (product photos); `/payments/esewa/return`, `/payments/esewa/failure/{attempt}`, `/payments/khalti/return` (providers only) |

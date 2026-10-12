@@ -37,6 +37,8 @@ export default function StaffPage() {
     const [form, setForm] = useState({ name: '', email: '', role: 'support' });
     const [statusFor, setStatusFor] = useState<StaffMember | null>(null);
     const [reason, setReason] = useState('');
+    const [roleFor, setRoleFor] = useState<StaffMember | null>(null);
+    const [newRole, setNewRole] = useState('');
     const [saving, setSaving] = useState(false);
     const { fieldErrors, message, capture, reset } = useFormErrors();
 
@@ -89,6 +91,23 @@ export default function StaffPage() {
         }
     };
 
+    const changeRole = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!roleFor) return;
+        reset();
+        setSaving(true);
+        try {
+            await api(`/admin/staff/${roleFor.id}/role`, { method: 'POST', body: { role: newRole } });
+            setNotice(`${roleFor.name} is now ${roles.find((r) => r.value === newRole)?.label ?? newRole}. They were signed out and sign in again with the new access.`);
+            setRoleFor(null);
+            await load();
+        } catch (err) {
+            capture(err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const resend = async (member: StaffMember) => {
         setNotice(null);
         try {
@@ -116,8 +135,7 @@ export default function StaffPage() {
                 </Button>
             </div>
             <p className="text-sm text-muted">
-                New staff get an email to set their own password. To change someone’s role, disable the account and add them again with the new role, so the audit
-                log keeps who did what under which role.
+                New staff get an email to set their own password. Role changes and disabling sign the person out at once, and the audit log records who changed what.
             </p>
             {notice && <Alert tone="success">{notice}</Alert>}
             <Card>
@@ -138,6 +156,19 @@ export default function StaffPage() {
                                     {s.status === 'active' && !s.last_login_at && (
                                         <button type="button" className="text-brand-600 hover:underline" onClick={() => resend(s)}>
                                             Resend invitation
+                                        </button>
+                                    )}
+                                    {s.status === 'active' && (
+                                        <button
+                                            type="button"
+                                            className="text-brand-600 hover:underline"
+                                            onClick={() => {
+                                                reset();
+                                                setNewRole(s.role ?? 'support');
+                                                setRoleFor(s);
+                                            }}
+                                        >
+                                            Change role
                                         </button>
                                     )}
                                     <button
@@ -194,6 +225,28 @@ export default function StaffPage() {
                         </Button>
                         <Button type="submit" loading={saving}>
                             {statusFor?.status === 'active' ? 'Disable account' : 'Re-enable account'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+            <Modal title={`Change role for ${roleFor?.name ?? ''}`} open={roleFor !== null} onClose={() => setRoleFor(null)}>
+                <form onSubmit={changeRole} className="space-y-3">
+                    {message && <Alert tone="error">{message}</Alert>}
+                    <Select label="Role" value={newRole} onChange={(e) => setNewRole(e.target.value)} error={fieldErrors.role}>
+                        {roles.map((r) => (
+                            <option key={r.value} value={r.value}>
+                                {r.label}
+                            </option>
+                        ))}
+                    </Select>
+                    {ROLE_HINTS[newRole] && <p className="text-sm text-muted">{ROLE_HINTS[newRole]}</p>}
+                    <p className="text-sm text-muted">They are signed out and sign in again with the new access.</p>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button type="button" variant="secondary" onClick={() => setRoleFor(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" loading={saving} disabled={newRole === roleFor?.role}>
+                            Change role
                         </Button>
                     </div>
                 </form>

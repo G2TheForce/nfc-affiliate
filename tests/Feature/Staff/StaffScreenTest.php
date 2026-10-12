@@ -93,4 +93,37 @@ class StaffScreenTest extends TestCase
         $this->actingAs($this->userWithRole(Role::AffiliateManager))->getJson('/api/v1/admin/staff')->assertForbidden();
         $this->actingAs($this->userWithRole(Role::FinanceManager))->postJson('/api/v1/admin/staff', ['name' => 'X', 'email' => 'x@example.com', 'role' => 'super_admin'])->assertForbidden();
     }
+
+    public function test_role_change_swaps_access_signs_out_and_is_audited(): void
+    {
+        $admin = $this->userWithRole(Role::SuperAdmin);
+        $ram = $this->userWithRole(Role::Support);
+        $ram->createToken('phone');
+
+        $this->actingAs($admin)->postJson("/api/v1/admin/staff/{$ram->public_id}/role", ['role' => 'finance_manager'])
+            ->assertOk()->assertJsonPath('data.role', 'finance_manager');
+
+        $ram->refresh();
+        $this->assertTrue($ram->hasRole('finance_manager'));
+        $this->assertFalse($ram->hasRole('support'));
+        $this->assertSame(0, $ram->tokens()->count());
+        $this->assertDatabaseHas('audit_logs', ['action' => 'admin.staff_role_changed', 'actor_id' => $admin->id, 'subject_id' => $ram->public_id]);
+
+        // Not a customer or affiliate role, not your own role, not the last super admin.
+        $this->actingAs($admin)->postJson("/api/v1/admin/staff/{$ram->public_id}/role", ['role' => 'affiliate'])->assertUnprocessable();
+        $this->actingAs($admin)->postJson("/api/v1/admin/staff/{$admin->public_id}/role", ['role' => 'support'])->assertUnprocessable();
+        $other = $this->userWithRole(Role::SuperAdmin);
+        $this->actingAs($other)->postJson("/api/v1/admin/staff/{$admin->public_id}/role", ['role' => 'support'])->assertOk();
+        $this->actingAs($admin->refresh())->postJson("/api/v1/admin/staff/{$other->public_id}/role", ['role' => 'support'])->assertForbidden();
+    }
+
+    public function test_invitation_cannot_be_resent_after_first_sign_in(): void
+    {
+        Notification::fake();
+        $admin = $this->userWithRole(Role::SuperAdmin);
+        $ram = $this->userWithRole(Role::Support, ['last_login_at' => now()]);
+
+        $this->actingAs($admin)->postJson("/api/v1/admin/staff/{$ram->public_id}/invitation")->assertUnprocessable();
+        Notification::assertNothingSent();
+    }
 }

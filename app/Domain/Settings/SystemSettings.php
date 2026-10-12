@@ -17,8 +17,13 @@ class SystemSettings
 {
     private const CACHE_KEY = 'system_settings.v1';
 
-    /** @var array<string, mixed> config values before any override, i.e. the .env defaults */
-    private static array $defaults = [];
+    /**
+     * The .env defaults are kept in config under this key. `config:cache`
+     * boots the app (and so runs apply()) before writing the cache, so the
+     * cached affiliate.* values may already hold overrides; this key keeps
+     * the true defaults next to them.
+     */
+    private const DEFAULTS_KEY = 'system_settings_defaults';
 
     // No constructor injection: this class is built at boot, before the
     // request exists, and the audit logger must see the signed-in user.
@@ -30,17 +35,27 @@ class SystemSettings
     /** Called at boot. Quietly does nothing before the table exists (fresh installs, tests). */
     public function apply(): void
     {
-        foreach (array_keys(SettingsRegistry::definitions()) as $key) {
-            self::$defaults[$key] ??= config(SettingsRegistry::configKey($key));
+        $defaults = config(self::DEFAULTS_KEY);
+        if (! is_array($defaults)) {
+            $defaults = [];
+            foreach (array_keys(SettingsRegistry::definitions()) as $key) {
+                $defaults[$key] = config(SettingsRegistry::configKey($key));
+            }
+            config([self::DEFAULTS_KEY => $defaults]);
         }
-        foreach ($this->overrides() as $key => $value) {
-            config([SettingsRegistry::configKey($key) => $value]);
+
+        $overrides = $this->overrides();
+        foreach ($defaults as $key => $default) {
+            // Setting the default too undoes an override baked into a config cache.
+            config([SettingsRegistry::configKey($key) => array_key_exists($key, $overrides) ? $overrides[$key] : $default]);
         }
     }
 
     public function default(string $key): mixed
     {
-        return array_key_exists($key, self::$defaults) ? self::$defaults[$key] : config(SettingsRegistry::configKey($key));
+        $defaults = config(self::DEFAULTS_KEY);
+
+        return is_array($defaults) && array_key_exists($key, $defaults) ? $defaults[$key] : config(SettingsRegistry::configKey($key));
     }
 
     /** @return array<string, mixed> */
