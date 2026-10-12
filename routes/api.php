@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
 use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
 use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Api\V1\Admin\SettingsController;
 use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
@@ -190,6 +191,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('staff', [StaffController::class, 'store'])->middleware([$admins, 'throttle:20,1'])->name('staff.store');
                 Route::post('staff/{user}/invitation', [StaffController::class, 'resendInvitation'])->whereUlid('user')->middleware([$admins, 'throttle:10,1'])->name('staff.invitation');
                 Route::post('staff/{user}/status', [StaffController::class, 'status'])->whereUlid('user')->middleware($admins)->name('staff.status');
+
+                $settings = 'permission:'.Permission::SettingsManage->value;
+                Route::get('settings', [SettingsController::class, 'index'])->middleware($settings)->name('settings.index');
+                Route::patch('settings', [SettingsController::class, 'update'])->middleware($settings)->name('settings.update');
+                Route::delete('settings/{key}', [SettingsController::class, 'reset'])->where('key', '[a-z_.]+')->middleware($settings)->name('settings.reset');
 
                 $assets = 'permission:'.Permission::MarketingAssetsManage->value;
                 Route::get('marketing-assets', [MarketingAssetController::class, 'index'])->middleware($assets)->name('marketing-assets.index');
