@@ -164,7 +164,7 @@ export default function ProductsPage() {
                                     <th className="py-2 font-medium">Product</th>
                                     <th className="py-2 font-medium">SKU</th>
                                     <th className="py-2 text-right font-medium">Price</th>
-                                    <th className="py-2 font-medium">Status</th>
+                                    <th className="py-2 pl-6 font-medium">Status</th>
                                     <th className="py-2" />
                                 </tr>
                             </thead>
@@ -186,7 +186,7 @@ export default function ProductsPage() {
                                         </td>
                                         <td className="py-2 text-muted">{p.sku}</td>
                                         <td className="py-2 text-right tabular-nums">{formatMoney(p.price_minor, p.currency)}</td>
-                                        <td className="py-2">{p.is_active ? 'Active' : 'Hidden'}</td>
+                                        <td className="py-2 pl-6">{p.is_active ? 'Active' : 'Hidden'}</td>
                                         <td className="py-2 text-right">
                                             <button type="button" className="text-brand-600 hover:underline" onClick={() => open(p)}>
                                                 Edit
