@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Store\AffiliateProgrammeController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
 use App\Http\Controllers\Api\V1\Store\CheckoutController;
 use App\Http\Controllers\Api\V1\Store\CustomerOrderController;
@@ -59,6 +60,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     // token when present; guests can check out too.
     Route::prefix('store')->name('store.')->middleware('throttle:store')->group(function () {
         Route::get('products', [CatalogController::class, 'products'])->name('products.index');
+        Route::get('affiliate-programme', [AffiliateProgrammeController::class, 'show'])->name('affiliate-programme');
         Route::get('products/{slug}', [CatalogController::class, 'product'])
             ->where('slug', '[a-z0-9-]+')->name('products.show');
         Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');

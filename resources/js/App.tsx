@@ -21,6 +21,7 @@ import OrderDetailPage from '@/pages/admin/OrderDetailPage';
 import AdminOrdersPage from '@/pages/admin/OrdersPage';
 import ProductsPage from '@/pages/admin/ProductsPage';
 import ReferralsPage from '@/pages/admin/ReferralsPage';
+import AffiliateProgrammePage from '@/pages/store/AffiliateProgrammePage';
 import CartPage from '@/pages/store/CartPage';
 import CheckoutPage from '@/pages/store/CheckoutPage';
 import OrderConfirmedPage from '@/pages/store/OrderConfirmedPage';
@@ -50,6 +51,7 @@ export default function App() {
                 <Route path="/shop" element={<ShopPage />} />
                 <Route path="/shop/:slug" element={<ProductPage />} />
                 <Route path="/cart" element={<CartPage />} />
+                <Route path="/affiliates" element={<AffiliateProgrammePage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-confirmed" element={<OrderConfirmedPage />} />
             </Route>

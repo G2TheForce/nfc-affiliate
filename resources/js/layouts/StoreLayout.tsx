@@ -31,6 +31,9 @@ export function StoreLayout() {
                         <NavLink to="/shop" className={link}>
                             Shop
                         </NavLink>
+                        <NavLink to="/affiliates" className={link}>
+                            Earn with us
+                        </NavLink>
                         <NavLink to="/cart" className={link}>
                             Cart{count > 0 && <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-xs font-bold text-white">{count}</span>}
                         </NavLink>
