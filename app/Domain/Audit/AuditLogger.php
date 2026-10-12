@@ -26,7 +26,8 @@ class AuditLogger
             'actor_id' => $actor?->getKey(),
             'action' => $action,
             'subject_type' => $subject ? class_basename($subject) : null,
-            'subject_id' => $subject ? (string) ($subject->getAttribute('public_id') ?? $subject->getKey()) : null,
+            // Not every model has a public_id (categories use their numeric id).
+            'subject_id' => $subject ? (string) ($subject->getAttributes()['public_id'] ?? $subject->getKey()) : null,
             'properties' => $properties === [] ? null : $this->redact($properties),
             'ip_hash' => $this->hashIp($this->request?->ip()),
             'user_agent' => $this->request?->userAgent() ? Str::limit($this->request->userAgent(), 250, '') : null,

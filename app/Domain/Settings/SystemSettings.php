@@ -20,7 +20,12 @@ class SystemSettings
     /** @var array<string, mixed> config values before any override, i.e. the .env defaults */
     private static array $defaults = [];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    // No constructor injection: this class is built at boot, before the
+    // request exists, and the audit logger must see the signed-in user.
+    private function audit(): AuditLogger
+    {
+        return app(AuditLogger::class);
+    }
 
     /** Called at boot. Quietly does nothing before the table exists (fresh installs, tests). */
     public function apply(): void
@@ -84,7 +89,7 @@ class SystemSettings
                     ['value' => json_encode($value), 'updated_by' => $actor->id, 'updated_at' => now(), 'created_at' => now()],
                 );
                 config([SettingsRegistry::configKey($key) => $value]);
-                $this->audit->log('setting.changed', null, ['key' => $key, 'from' => $current, 'to' => $value], $actor);
+                $this->audit()->log('setting.changed', null, ['key' => $key, 'from' => $current, 'to' => $value], $actor);
                 $changed[] = $key;
             }
         });
@@ -107,7 +112,7 @@ class SystemSettings
         }
         DB::transaction(function () use ($key, $row, $actor) {
             DB::table('system_settings')->where('key', $key)->delete();
-            $this->audit->log('setting.reset', null, ['key' => $key, 'from' => json_decode((string) $row->value, true), 'to' => $this->default($key)], $actor);
+            $this->audit()->log('setting.reset', null, ['key' => $key, 'from' => json_decode((string) $row->value, true), 'to' => $this->default($key)], $actor);
         });
         config([SettingsRegistry::configKey($key) => $this->default($key)]);
         Cache::forget(self::CACHE_KEY);

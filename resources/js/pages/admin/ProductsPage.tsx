@@ -9,6 +9,8 @@ interface Category {
     id: number;
     name: string;
     slug: string;
+    is_active: boolean;
+    products_count: number;
 }
 
 const EMPTY = { name: '', sku: '', slug: '', description: '', price: '', category_id: '', is_active: true };
@@ -22,6 +24,8 @@ export default function ProductsPage() {
     const [saving, setSaving] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [categoryError, setCategoryError] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
     const { fieldErrors, message, capture, reset } = useFormErrors();
 
     const load = () =>
@@ -35,6 +39,7 @@ export default function ProductsPage() {
 
     const open = (p: Product | 'new') => {
         reset();
+        setImageError(null);
         setEditing(p);
         setForm(
             p === 'new'
@@ -92,6 +97,52 @@ export default function ProductsPage() {
         }
     };
 
+    const uploadImage = async (product: Product, file: File | null) => {
+        if (!file) return;
+        setImageError(null);
+        setUploading(true);
+        const body = new FormData();
+        body.append('image', file);
+        try {
+            const r = await api<{ data: Product }>(`/admin/products/${product.id}/image`, { method: 'POST', body });
+            setEditing(r.data);
+            await load();
+        } catch (err) {
+            const first = err instanceof ApiError ? Object.values(err.errors)[0]?.[0] : undefined;
+            setImageError(first ?? (err instanceof ApiError ? err.message : 'The photo could not be uploaded.'));
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const removeImage = async (product: Product) => {
+        setImageError(null);
+        try {
+            const r = await api<{ data: Product }>(`/admin/products/${product.id}/image`, { method: 'DELETE' });
+            setEditing(r.data);
+            await load();
+        } catch (err) {
+            setImageError(err instanceof ApiError ? err.message : 'The photo could not be removed.');
+        }
+    };
+
+    const renameCategory = async (c: Category) => {
+        const name = window.prompt('New name for this category', c.name)?.trim();
+        if (!name || name === c.name) return;
+        await categoryAction(() => api(`/admin/categories/${c.id}`, { method: 'PATCH', body: { name } }));
+    };
+
+    const categoryAction = async (run: () => Promise<unknown>) => {
+        setCategoryError(null);
+        try {
+            await run();
+            await load();
+        } catch (err) {
+            const first = err instanceof ApiError ? Object.values(err.errors)[0]?.[0] : undefined;
+            setCategoryError(first ?? (err instanceof ApiError ? err.message : 'That did not work. Please try again.'));
+        }
+    };
+
     if (error) return <Alert tone="error">{error}</Alert>;
     if (!products) return <Spinner />;
     const set = (key: keyof typeof EMPTY) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -121,8 +172,17 @@ export default function ProductsPage() {
                                 {products.map((p) => (
                                     <tr key={p.id}>
                                         <td className="py-2">
-                                            <span className="font-medium text-ink">{p.name}</span>
-                                            {p.category && <span className="block text-xs text-muted">{p.category.name}</span>}
+                                            <div className="flex items-center gap-3">
+                                                {p.image_url ? (
+                                                    <img src={p.image_url} alt="" className="size-10 rounded-md bg-canvas object-cover" />
+                                                ) : (
+                                                    <span className="size-10 rounded-md bg-canvas" aria-hidden />
+                                                )}
+                                                <div>
+                                                    <span className="font-medium text-ink">{p.name}</span>
+                                                    {p.category && <span className="block text-xs text-muted">{p.category.name}</span>}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="py-2 text-muted">{p.sku}</td>
                                         <td className="py-2 text-right tabular-nums">{formatMoney(p.price_minor, p.currency)}</td>
@@ -140,7 +200,46 @@ export default function ProductsPage() {
                 )}
             </Card>
             <Card title="Categories">
-                <p className="text-sm text-muted">{categories.map((c) => c.name).join(', ') || 'None yet.'}</p>
+                {categories.length === 0 ? (
+                    <p className="text-sm text-muted">None yet.</p>
+                ) : (
+                    <ul className="divide-y divide-line text-sm">
+                        {categories.map((c) => (
+                            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                                <span>
+                                    <span className="font-medium text-ink">{c.name}</span>
+                                    <span className="text-muted">
+                                        {' '}
+                                        · {c.products_count} product(s){c.is_active ? '' : ' · hidden from the shop'}
+                                    </span>
+                                </span>
+                                <span className="flex gap-3">
+                                    <button type="button" className="text-brand-600 hover:underline" onClick={() => renameCategory(c)}>
+                                        Rename
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="text-brand-600 hover:underline"
+                                        onClick={() => categoryAction(() => api(`/admin/categories/${c.id}`, { method: 'PATCH', body: { is_active: !c.is_active } }))}
+                                    >
+                                        {c.is_active ? 'Hide' : 'Show'}
+                                    </button>
+                                    {c.products_count === 0 && (
+                                        <button
+                                            type="button"
+                                            className="text-danger hover:underline"
+                                            onClick={() =>
+                                                window.confirm(`Delete the category “${c.name}”?`) && categoryAction(() => api(`/admin/categories/${c.id}`, { method: 'DELETE' }))
+                                            }
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
                 <form onSubmit={addCategory} className="mt-3 flex gap-2">
                     <label htmlFor="new-cat" className="sr-only">
                         New category
@@ -171,6 +270,32 @@ export default function ProductsPage() {
                             </option>
                         ))}
                     </Select>
+                    {editing && editing !== 'new' && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-ink">Photo</p>
+                            {editing.image_url && <img src={editing.image_url} alt="" className="h-32 rounded-lg bg-canvas object-contain" />}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <label className="cursor-pointer text-sm text-brand-600 hover:underline">
+                                    {uploading ? 'Uploading…' : editing.image_url ? 'Replace photo' : 'Add photo'}
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        className="sr-only"
+                                        disabled={uploading}
+                                        onChange={(e) => uploadImage(editing, e.target.files?.[0] ?? null)}
+                                    />
+                                </label>
+                                {editing.image_url && (
+                                    <button type="button" className="text-sm text-danger hover:underline" onClick={() => removeImage(editing)}>
+                                        Remove photo
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted">JPG, PNG or WebP up to 5 MB. A square photo about 1200 pixels wide looks best.</p>
+                            {imageError && <p className="text-sm text-danger">{imageError}</p>}
+                        </div>
+                    )}
+                    {editing === 'new' && <p className="text-sm text-muted">Add a photo after saving the product.</p>}
                     <TextArea label="Description" value={form.description} onChange={set('description')} error={fieldErrors.description} />
                     <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />

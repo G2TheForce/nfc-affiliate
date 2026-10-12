@@ -177,6 +177,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::patch('products/{product}', [ProductController::class, 'update'])->middleware($catalog)->name('products.update');
                 Route::get('categories', [ProductController::class, 'categories'])->middleware($catalog)->name('categories.index');
                 Route::post('categories', [ProductController::class, 'storeCategory'])->middleware($catalog)->name('categories.store');
+                Route::patch('categories/{category}', [ProductController::class, 'updateCategory'])->whereNumber('category')->middleware($catalog)->name('categories.update');
+                Route::delete('categories/{category}', [ProductController::class, 'destroyCategory'])->whereNumber('category')->middleware($catalog)->name('categories.destroy');
+                Route::post('products/{product}/image', [ProductController::class, 'storeImage'])->middleware([$catalog, 'throttle:30,1'])->name('products.image.store');
+                Route::delete('products/{product}/image', [ProductController::class, 'destroyImage'])->middleware($catalog)->name('products.image.destroy');
 
                 Route::get('coupons', [CouponController::class, 'index'])->middleware($campaigns)->name('coupons.index');
                 Route::post('coupons', [CouponController::class, 'store'])->middleware($campaigns)->name('coupons.store');

@@ -16,7 +16,7 @@ class Product extends Model
 
     protected $fillable = ['category_id', 'sku', 'name', 'slug', 'description', 'price_minor', 'currency', 'is_active'];
 
-    protected $hidden = ['id', 'category_id'];
+    protected $hidden = ['id', 'category_id', 'image_path'];
 
     protected static function booted(): void
     {
@@ -46,5 +46,11 @@ class Product extends Model
     public function scopeActive(Builder $query): void
     {
         $query->where('is_active', true);
+    }
+
+    /** Public address of the product photo, or null. */
+    public function imageUrl(): ?string
+    {
+        return $this->image_path ? url('/media/'.$this->image_path) : null;
     }
 }
