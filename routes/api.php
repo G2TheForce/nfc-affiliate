@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
 use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
 use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
 use App\Http\Controllers\Api\V1\Affiliate\CampaignController as AffiliateCampaignController;
@@ -183,6 +184,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->whereUlid('campaign')
                     ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.show');
                 Route::patch('campaigns/{campaign}', [CampaignController::class, 'update'])->whereUlid('campaign')->middleware($campaigns)->name('campaigns.update');
+
+                $admins = 'permission:'.Permission::AdminsManage->value;
+                Route::get('staff', [StaffController::class, 'index'])->middleware($admins)->name('staff.index');
+                Route::post('staff', [StaffController::class, 'store'])->middleware([$admins, 'throttle:20,1'])->name('staff.store');
+                Route::post('staff/{user}/invitation', [StaffController::class, 'resendInvitation'])->whereUlid('user')->middleware([$admins, 'throttle:10,1'])->name('staff.invitation');
+                Route::post('staff/{user}/status', [StaffController::class, 'status'])->whereUlid('user')->middleware($admins)->name('staff.status');
 
                 $assets = 'permission:'.Permission::MarketingAssetsManage->value;
                 Route::get('marketing-assets', [MarketingAssetController::class, 'index'])->middleware($assets)->name('marketing-assets.index');

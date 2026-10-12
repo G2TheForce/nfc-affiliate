@@ -35,6 +35,7 @@ import AdminHomePage from '@/pages/admin/AdminHomePage';
 import AuditLogPage from '@/pages/admin/AuditLogPage';
 import FraudPage from '@/pages/admin/FraudPage';
 import CampaignsPage from '@/pages/admin/CampaignsPage';
+import StaffPage from '@/pages/admin/StaffPage';
 import AdminMarketingPage from '@/pages/admin/MarketingPage';
 import MarketingPage from '@/pages/account/MarketingPage';
 import EmailVerifiedPage from '@/pages/auth/EmailVerifiedPage';
@@ -125,6 +126,7 @@ export default function App() {
                                 { to: '/admin/marketing', label: 'Marketing materials', permission: 'marketing_assets.manage' },
                                 { to: '/admin/products', label: 'Products', permission: 'catalog.manage' },
                                 { to: '/admin/terms', label: 'Affiliate terms', permission: 'affiliates.view' },
+                                { to: '/admin/staff', label: 'Staff', permission: 'admins.manage' },
                                 { to: '/admin/audit-logs', label: 'Audit log', permission: 'audit_logs.view' },
                             ]}
                         />
@@ -135,6 +137,7 @@ export default function App() {
                 <Route path="finance" element={<FinanceDashboardPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogPage />} />
+                <Route path="staff" element={<StaffPage />} />
                 <Route path="affiliates" element={<AffiliatesListPage />} />
                 <Route path="affiliates/:id" element={<AffiliateDetailPage />} />
                 <Route path="terms" element={<TermsPage />} />
