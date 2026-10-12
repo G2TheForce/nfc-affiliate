@@ -123,10 +123,10 @@ class Metrics
      */
     public function products(Period $period, Filters $filters, ?int $limit = 10): array
     {
-        $commission = DB::table('commissions')
-            ->selectRaw('order_item_id, SUM(amount_minor - reversed_minor) as net')
-            ->when($filters->affiliateId, fn ($q, $id) => $q->where('affiliate_profile_id', $id))
-            ->groupBy('order_item_id');
+        // Only commissions on orders paid in the range, not the whole table.
+        $commission = $this->commissions($period, $filters)
+            ->selectRaw('commissions.order_item_id, SUM(commissions.amount_minor - commissions.reversed_minor) as net')
+            ->groupBy('commissions.order_item_id');
 
         return $this->paidItems($period, $filters)
             ->join('products', 'products.id', '=', 'order_items.product_id')
@@ -164,7 +164,13 @@ class Metrics
 
         $ids = $placed->keys()->merge($paid->keys())->merge($earned->keys())->unique()->values();
         $coupons = DB::table('coupons')->leftJoin('affiliate_profiles', 'affiliate_profiles.id', '=', 'coupons.affiliate_profile_id')
-            ->whereIn('coupons.id', $ids)->get(['coupons.id', 'coupons.public_id', 'coupons.code', 'affiliate_profiles.display_name'])->keyBy('id');
+            ->whereIn('coupons.id', $ids)->get(['coupons.id', 'coupons.public_id', 'coupons.code', 'coupons.affiliate_profile_id', 'affiliate_profiles.display_name'])->keyBy('id');
+
+        // An affiliate's own view: an order credited to them by a click can
+        // carry another affiliate's coupon; never show them that coupon.
+        if ($filters->affiliateId !== null) {
+            $ids = $ids->filter(fn ($id) => isset($coupons[$id]) && in_array($coupons[$id]->affiliate_profile_id, [null, $filters->affiliateId], false))->values();
+        }
 
         return $ids->map(fn ($id) => [
             'coupon_id' => $coupons[$id]->public_id ?? null,

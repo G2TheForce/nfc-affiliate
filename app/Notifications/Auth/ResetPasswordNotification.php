@@ -14,4 +14,6 @@ class ResetPasswordNotification extends ResetPassword implements ShouldQueue
 
     /** @var list<int> */
     public array $backoff = [60, 300, 900];
+
+    public int $timeout = 30;
 }

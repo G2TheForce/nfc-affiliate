@@ -50,7 +50,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_EXPIRATION', 60 * 24 * 30), // minutes; mobile/API tokens last 30 days
 
     /*
     |--------------------------------------------------------------------------

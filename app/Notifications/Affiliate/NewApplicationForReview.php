@@ -14,6 +14,13 @@ class NewApplicationForReview extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 5;
+
+    /** @var list<int> */
+    public array $backoff = [60, 300, 900];
+
+    public int $timeout = 30;
+
     public function __construct(public readonly AffiliateProfile $profile) {}
 
     /**

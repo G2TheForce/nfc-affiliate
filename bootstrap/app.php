@@ -19,8 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Session cookies for the first-party SPA on /api routes.
         $middleware->statefulApi();
+        // General limit for every /api route (120/min per user or IP); stricter
+        // named limits are added per route.
+        $middleware->throttleApi();
         $middleware->append(SecurityHeaders::class);
-        $middleware->trustProxies(at: env('TRUSTED_PROXIES'));
 
         $middleware->alias([
             'active' => EnsureUserIsActive::class,

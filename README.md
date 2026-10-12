@@ -70,6 +70,8 @@ Online payments are off until switched on in `.env`:
 | `php artisan affiliate:mature-commissions` | Approve and release commissions past the holding period (also scheduled hourly) |
 | `php artisan affiliate:reconcile-commissions` | Check the ledger against commissions and adjustments (also scheduled daily) |
 | `php artisan payments:recheck` | Ask eSewa or Khalti about unfinished online payments (also scheduled every five minutes) |
+| `scripts/backup-db.sh` / `scripts/restore-db.sh` | Encrypted database backup and checked restore ([guide](docs/backup-and-restore.md)) |
+| `php artisan test tests/Concurrency` | Parallel money races against MySQL ([guide](docs/load-and-concurrency.md)) |
 | `vendor/bin/pint` | Format PHP code |
 
 ## Documentation
@@ -79,3 +81,4 @@ Online payments are off until switched on in `.env`:
 - [Permissions matrix](docs/permissions-matrix.md)
 - [API (OpenAPI 3.1)](docs/api/openapi.yaml)
 - [Local setup on Windows](docs/local-setup-windows.md)
+- [Security review](docs/security-review.md), [production configuration](docs/production-config.md), [backup and restore](docs/backup-and-restore.md), [load and concurrency tests](docs/load-and-concurrency.md)

@@ -117,7 +117,8 @@ Validation errors use Laravel's standard shape:
 
 | Limiter | Limit |
 |---|---|
-| `login` | 5/min per email+IP (configurable), and 30/min per IP |
+| `login` | 5/min per email+IP (configurable), 30/min per IP, and 30/hour per account across all IPs |
+| every `/api` route (`api`) | 120/min per user, or per IP for guests, on top of the named limits |
 | `register` | 10/hour per IP |
 | `password-reset` | 5/min per IP |
 | verification link and resend | 6/min |
@@ -129,6 +130,13 @@ Validation errors use Laravel's standard shape:
 | payout request, payout details change | 6/min per user |
 | `exports` (report CSV/XLSX) | 10/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
+
+## Security and operations (Phase 8)
+
+- Findings and coverage: [security review](security-review.md).
+- Settings and processes for going live: [production configuration](production-config.md).
+- Encrypted backups, plus a restore that has been tested: [backup and restore](backup-and-restore.md).
+- Parallel money races and load results: [load and concurrency tests](load-and-concurrency.md).
 
 ## Security headers
 

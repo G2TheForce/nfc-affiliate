@@ -6,6 +6,7 @@ use App\Domain\Payments\Gateways\EsewaGateway;
 use App\Domain\Payments\ProviderPaymentService;
 use App\Enums\PaymentAttemptStatus;
 use App\Enums\Role;
+use App\Enums\UserStatus;
 use App\Models\Commission;
 use App\Models\Order;
 use App\Models\OrderPayment;
@@ -390,5 +391,40 @@ class OnlinePaymentTest extends TestCase
         $this->assertSame(1, OrderPayment::query()->count());
         $this->assertSame(1, Commission::query()->count());
         $this->assertSame(PaymentAttemptStatus::Completed, $fromCallback->refresh()->status);
+    }
+
+    public function test_a_disabled_account_cannot_pay_even_on_its_own_order(): void
+    {
+        [$order, $token] = $this->guestOrder();
+        $customer = $this->userWithRole(Role::Customer, ['status' => UserStatus::Disabled]);
+        $order->forceFill(['customer_user_id' => $customer->id])->save();
+
+        $this->actingAs($customer)->postJson("/api/v1/store/orders/{$order->public_id}/payments", ['provider' => 'esewa', 'access_token' => $token])
+            ->assertForbidden();
+        $this->assertSame(0, PaymentAttempt::query()->count());
+    }
+
+    public function test_a_complete_status_without_a_readable_amount_goes_to_review(): void
+    {
+        [$order, $token] = $this->guestOrder();
+        Http::fake([
+            self::KHALTI.'initiate/' => Http::response(['pidx' => 'pidxNoAmount0000000000', 'payment_url' => 'https://test-pay.khalti.com/?pidx=pidxNoAmount0000000000', 'expires_at' => now()->addHour()->toIso8601String()]),
+            self::KHALTI.'lookup/' => Http::response(['pidx' => 'pidxNoAmount0000000000', 'total_amount' => 'n/a', 'status' => 'Completed', 'transaction_id' => 'T1']),
+        ]);
+        $this->startPayment($order, $token, 'khalti')->assertCreated();
+
+        $this->get('/payments/khalti/return?pidx=pidxNoAmount0000000000&status=Completed');
+
+        $this->assertSame('pending_payment', $order->refresh()->status->value);
+        $this->assertSame(PaymentAttemptStatus::NeedsReview, PaymentAttempt::query()->sole()->status);
+    }
+
+    public function test_return_urls_store_only_short_scalar_values(): void
+    {
+        $this->get('/payments/khalti/return?pidx=unknown&status='.str_repeat('x', 5000).'&purchase_order_id[]=a');
+
+        $payload = WebhookEvent::query()->sole()->payload;
+        $this->assertLessThanOrEqual(100, mb_strlen($payload['status'] ?? ''));
+        $this->assertArrayNotHasKey('purchase_order_id', $payload);
     }
 }

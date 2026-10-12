@@ -45,7 +45,7 @@ class CouponRequest extends FormRequest
     {
         return [function (Validator $validator) {
             $type = $this->input('discount_type', $this->route('coupon')?->discount_type?->value);
-            if ($type === DiscountType::Percent->value && (int) $this->input('discount_value', 0) > 10000) {
+            if ($type === DiscountType::Percent->value && (int) $this->input('discount_value', $this->route('coupon')?->discount_value ?? 0) > 10000) {
                 $validator->errors()->add('discount_value', 'A percentage discount cannot exceed 100% (10000 basis points).');
             }
 

@@ -96,7 +96,10 @@ class CouponEvaluator
 
     public function checkLimits(Coupon $coupon, string $email): void
     {
-        $active = CouponRedemption::query()->where('coupon_id', $coupon->id)->whereNull('voided_at');
+        // A locking read sees redemptions committed while this checkout waited
+        // for the coupon lock; a plain read would use the transaction's older
+        // MySQL snapshot and let a single-use code through several times.
+        $active = CouponRedemption::query()->where('coupon_id', $coupon->id)->whereNull('voided_at')->sharedLock();
 
         if ($coupon->usage_limit !== null && (clone $active)->count() >= $coupon->usage_limit) {
             throw $this->invalid('This code has reached its usage limit.');
