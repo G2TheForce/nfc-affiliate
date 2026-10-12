@@ -78,7 +78,7 @@ export default function ReferralStatsPage() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Stat label="Clicks" value={t.clicks} hint={`${t.unique_clicks} unique`} />
                 <Stat label="Orders placed" value={t.orders} hint={t.cancelled_orders ? `${t.cancelled_orders} cancelled` : undefined} />
-                <Stat label="Conversion" value={t.conversion_rate === null ? '—' : `${t.conversion_rate}%`} hint="Orders per unique click" />
+                <Stat label="Conversion" value={t.conversion_rate === null ? '—' : `${t.conversion_rate}%`} hint="Orders per 100 unique clicks" />
                 <Stat label="Order value" value={formatMoney(t.order_value_minor, summary.currency)} hint="After discounts, before delivery" />
             </div>
             <div className="grid gap-4 md:grid-cols-2">

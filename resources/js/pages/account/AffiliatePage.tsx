@@ -99,7 +99,7 @@ function ReferralCard({ profile }: { profile: AffiliateProfile }) {
                     {copied ? 'Copied' : 'Copy code'}
                 </Button>
             </div>
-            <p className="mt-3 text-sm text-muted">Referral links, click tracking and earnings are added in the next release.</p>
+            <p className="mt-3 text-sm text-muted">Customers can type this code at checkout, or follow one of your Referral links. Your sales and earnings are on the Affiliate dashboard.</p>
         </Card>
     );
 }
