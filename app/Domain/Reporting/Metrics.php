@@ -123,10 +123,10 @@ class Metrics
      */
     public function products(Period $period, Filters $filters, ?int $limit = 10): array
     {
-        $commission = DB::table('commissions')
-            ->selectRaw('order_item_id, SUM(amount_minor - reversed_minor) as net')
-            ->when($filters->affiliateId, fn ($q, $id) => $q->where('affiliate_profile_id', $id))
-            ->groupBy('order_item_id');
+        // Only commissions on orders paid in the range, not the whole table.
+        $commission = $this->commissions($period, $filters)
+            ->selectRaw('commissions.order_item_id, SUM(commissions.amount_minor - commissions.reversed_minor) as net')
+            ->groupBy('commissions.order_item_id');
 
         return $this->paidItems($period, $filters)
             ->join('products', 'products.id', '=', 'order_items.product_id')
