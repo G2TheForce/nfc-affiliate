@@ -6,6 +6,7 @@ use App\Domain\Payments\Gateways\EsewaGateway;
 use App\Domain\Payments\ProviderPaymentService;
 use App\Enums\PaymentAttemptStatus;
 use App\Enums\Role;
+use App\Enums\UserStatus;
 use App\Models\Commission;
 use App\Models\Order;
 use App\Models\OrderPayment;
@@ -390,5 +391,16 @@ class OnlinePaymentTest extends TestCase
         $this->assertSame(1, OrderPayment::query()->count());
         $this->assertSame(1, Commission::query()->count());
         $this->assertSame(PaymentAttemptStatus::Completed, $fromCallback->refresh()->status);
+    }
+
+    public function test_a_disabled_account_cannot_pay_even_on_its_own_order(): void
+    {
+        [$order, $token] = $this->guestOrder();
+        $customer = $this->userWithRole(Role::Customer, ['status' => UserStatus::Disabled]);
+        $order->forceFill(['customer_user_id' => $customer->id])->save();
+
+        $this->actingAs($customer)->postJson("/api/v1/store/orders/{$order->public_id}/payments", ['provider' => 'esewa', 'access_token' => $token])
+            ->assertForbidden();
+        $this->assertSame(0, PaymentAttempt::query()->count());
     }
 }

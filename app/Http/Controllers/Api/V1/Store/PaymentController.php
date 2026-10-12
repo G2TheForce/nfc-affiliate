@@ -78,6 +78,7 @@ class PaymentController extends Controller
     private function authorizeOrder(Request $request, Order $order, ?string $token): void
     {
         $user = $request->user('sanctum');
+        abort_if($user && ! $user->isActive(), 403, 'This account is disabled.');
         $owner = $user && $order->customer_user_id !== null && $order->customer_user_id === $user->id;
 
         abort_unless($owner || $order->accessTokenMatches($token), 404, 'Order not found.');

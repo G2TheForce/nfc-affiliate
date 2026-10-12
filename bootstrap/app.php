@@ -20,7 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // Session cookies for the first-party SPA on /api routes.
         $middleware->statefulApi();
         $middleware->append(SecurityHeaders::class);
-        $middleware->trustProxies(at: env('TRUSTED_PROXIES'));
 
         $middleware->alias([
             'active' => EnsureUserIsActive::class,

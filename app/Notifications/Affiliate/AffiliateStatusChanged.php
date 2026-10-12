@@ -22,6 +22,8 @@ class AffiliateStatusChanged extends Notification implements ShouldQueue
     /** @var list<int> */
     public array $backoff = [60, 300, 900];
 
+    public int $timeout = 30;
+
     public function __construct(
         public readonly AffiliateProfile $profile,
         public readonly AffiliateStatus $from,

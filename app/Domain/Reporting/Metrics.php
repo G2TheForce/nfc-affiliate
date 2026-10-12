@@ -164,7 +164,13 @@ class Metrics
 
         $ids = $placed->keys()->merge($paid->keys())->merge($earned->keys())->unique()->values();
         $coupons = DB::table('coupons')->leftJoin('affiliate_profiles', 'affiliate_profiles.id', '=', 'coupons.affiliate_profile_id')
-            ->whereIn('coupons.id', $ids)->get(['coupons.id', 'coupons.public_id', 'coupons.code', 'affiliate_profiles.display_name'])->keyBy('id');
+            ->whereIn('coupons.id', $ids)->get(['coupons.id', 'coupons.public_id', 'coupons.code', 'coupons.affiliate_profile_id', 'affiliate_profiles.display_name'])->keyBy('id');
+
+        // An affiliate's own view: an order credited to them by a click can
+        // carry another affiliate's coupon; never show them that coupon.
+        if ($filters->affiliateId !== null) {
+            $ids = $ids->filter(fn ($id) => isset($coupons[$id]) && in_array($coupons[$id]->affiliate_profile_id, [null, $filters->affiliateId], false))->values();
+        }
 
         return $ids->map(fn ($id) => [
             'coupon_id' => $coupons[$id]->public_id ?? null,

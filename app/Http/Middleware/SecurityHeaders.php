@@ -34,10 +34,27 @@ class SecurityHeaders
                 "connect-src 'self'",
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
-                "form-action 'self'",
+                'form-action '.implode(' ', ["'self'", ...$this->paymentFormOrigins()]),
             ]));
         }
 
         return $response;
+    }
+
+    /**
+     * eSewa takes the customer by a form POST from the order page, which
+     * form-action would otherwise block (ADR 0011).
+     *
+     * @return list<string>
+     */
+    private function paymentFormOrigins(): array
+    {
+        $esewa = config('payments.providers.esewa');
+        if (! ($esewa['enabled'] ?? false)) {
+            return [];
+        }
+        $url = parse_url((string) ($esewa['urls'][$esewa['mode'] ?? 'production']['form'] ?? ''));
+
+        return isset($url['scheme'], $url['host']) && $url['scheme'] === 'https' ? ['https://'.$url['host']] : [];
     }
 }

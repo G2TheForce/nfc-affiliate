@@ -16,6 +16,13 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
+    | Load balancer or reverse proxy addresses (comma-separated IPs/CIDRs, or
+    | "*" when the app is only reachable through the proxy). Needed for real
+    | client IPs in rate limits and audit logs, and for HTTPS detection.
+    */
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------

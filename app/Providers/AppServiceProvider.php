@@ -10,6 +10,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -30,6 +31,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Read from config, not env(), so it still works after config:cache.
+        if ($proxies = config('app.trusted_proxies')) {
+            TrustProxies::at($proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
+
         // Fail loudly in development on lazy loading and silently discarded attributes.
         Model::shouldBeStrict(! $this->app->isProduction());
 
