@@ -18,7 +18,7 @@ class CommissionRule extends Model
 {
     protected $guarded = ['*'];
 
-    protected $hidden = ['id', 'commission_plan_id', 'product_category_id', 'product_id', 'affiliate_profile_id', 'created_by', 'updated_by'];
+    protected $hidden = ['id', 'commission_plan_id', 'product_category_id', 'product_id', 'affiliate_profile_id', 'campaign_id', 'created_by', 'updated_by'];
 
     protected static function booted(): void
     {
@@ -36,6 +36,7 @@ class CommissionRule extends Model
             'product_category_id' => 'integer',
             'product_id' => 'integer',
             'affiliate_profile_id' => 'integer',
+            'campaign_id' => 'integer',
             'rate_bp' => 'integer',
             'fixed_minor' => 'integer',
             'starts_at' => 'datetime',
@@ -73,6 +74,11 @@ class CommissionRule extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function affiliate(): BelongsTo

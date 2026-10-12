@@ -39,4 +39,9 @@ class OrderAttribution extends Model
     {
         return $this->belongsTo(User::class, 'decided_by')->withTrashed();
     }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
+    }
 }

@@ -40,9 +40,10 @@ const SCOPES = [
     { value: 'category', label: 'A product category' },
     { value: 'product', label: 'A product' },
     { value: 'affiliate', label: 'One affiliate (override)' },
+    { value: 'campaign', label: 'A campaign' },
 ];
 
-const PRECEDENCE = ['Product or category exclusion', 'Affiliate override', 'Product rate', 'Category rate', 'Plan default', 'Global default'];
+const PRECEDENCE = ['Product or category exclusion', 'Campaign rate (orders through a campaign link or coupon)', 'Affiliate override', 'Product rate', 'Category rate', 'Plan default', 'Global default'];
 
 const toLocalInput = (iso: string | null) => {
     if (!iso) return '';
@@ -99,6 +100,10 @@ export default function CommissionRulesPage() {
                     id: a.id,
                     name: `${a.display_name} (${a.referral_code})`,
                 })),
+            campaign: async () =>
+                (await api<{ data: { id: string; name: string; state: string }[] }>('/admin/campaigns')).data
+                    .filter((k) => k.state !== 'ended')
+                    .map((k) => ({ id: k.id, name: k.name })),
         };
         const source = sources[form.scope];
         if (!source) return;

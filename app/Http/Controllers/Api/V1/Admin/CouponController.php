@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CouponRequest;
 use App\Http\Resources\Admin\CouponResource;
 use App\Models\AffiliateProfile;
+use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +25,7 @@ class CouponController extends Controller
 
         return CouponResource::collection(
             Coupon::query()
-                ->with(['affiliate', 'products'])
+                ->with(['affiliate', 'products', 'campaign'])
                 ->withCount(['redemptions as active_redemptions_count' => fn ($q) => $q->whereNull('voided_at')])
                 ->when($filters['search'] ?? null, fn ($q, $s) => $q->where('code', 'like', '%'.addcslashes(strtoupper($s), '%_\\').'%'))
                 ->latest('id')
@@ -67,6 +68,9 @@ class CouponController extends Controller
         if (array_key_exists('affiliate_id', $data)) {
             $data['affiliate_profile_id'] = $data['affiliate_id'] ? AffiliateProfile::where('public_id', $data['affiliate_id'])->value('id') : null;
         }
+        if (array_key_exists('campaign_id', $data)) {
+            $data['campaign_id'] = $data['campaign_id'] ? Campaign::where('public_id', $data['campaign_id'])->value('id') : null;
+        }
         unset($data['affiliate_id'], $data['product_ids']);
 
         return $data;
@@ -85,7 +89,7 @@ class CouponController extends Controller
     private function fresh(Coupon $coupon): Coupon
     {
         return Coupon::query()
-            ->with(['affiliate', 'products'])
+            ->with(['affiliate', 'products', 'campaign'])
             ->withCount(['redemptions as active_redemptions_count' => fn ($q) => $q->whereNull('voided_at')])
             ->findOrFail($coupon->id);
     }

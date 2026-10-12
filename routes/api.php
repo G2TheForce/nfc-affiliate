@@ -4,6 +4,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\Api\V1\Admin\AdjustmentController;
 use App\Http\Controllers\Api\V1\Admin\AffiliateController;
 use App\Http\Controllers\Api\V1\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Admin\CampaignController;
 use App\Http\Controllers\Api\V1\Admin\CommissionController;
 use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
 use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralR
 use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
+use App\Http\Controllers\Api\V1\Affiliate\CampaignController as AffiliateCampaignController;
 use App\Http\Controllers\Api\V1\Affiliate\DashboardController;
 use App\Http\Controllers\Api\V1\Affiliate\EarningsController;
 use App\Http\Controllers\Api\V1\Affiliate\PayoutController;
@@ -107,6 +109,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
             Route::middleware('permission:'.Permission::AffiliatePortal->value)->group(function () {
                 Route::get('links', [ReferralLinkController::class, 'index'])->name('links.index');
+                Route::get('campaigns', [AffiliateCampaignController::class, 'index'])->name('campaigns.index');
                 Route::post('links', [ReferralLinkController::class, 'store'])->middleware('throttle:30,1')->name('links.store');
                 Route::patch('links/{link}', [ReferralLinkController::class, 'update'])->whereUlid('link')->name('links.update');
                 Route::get('referrals/summary', [ReferralReportController::class, 'summary'])->name('referrals.summary');
@@ -168,6 +171,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('coupons', [CouponController::class, 'index'])->middleware($campaigns)->name('coupons.index');
                 Route::post('coupons', [CouponController::class, 'store'])->middleware($campaigns)->name('coupons.store');
                 Route::patch('coupons/{coupon}', [CouponController::class, 'update'])->middleware($campaigns)->name('coupons.update');
+
+                Route::get('campaigns', [CampaignController::class, 'index'])
+                    ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.index');
+                Route::post('campaigns', [CampaignController::class, 'store'])->middleware($campaigns)->name('campaigns.store');
+                Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->whereUlid('campaign')
+                    ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.show');
+                Route::patch('campaigns/{campaign}', [CampaignController::class, 'update'])->whereUlid('campaign')->middleware($campaigns)->name('campaigns.update');
 
                 Route::prefix('orders')->name('orders.')->group(function () {
                     Route::get('/', [OrderController::class, 'index'])->middleware('permission:'.Permission::OrdersView->value)->name('index');

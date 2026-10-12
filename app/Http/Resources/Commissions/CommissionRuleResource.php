@@ -43,6 +43,7 @@ class CommissionRuleResource extends JsonResource
             CommissionRuleScope::Category => $rule->category ? ['id' => $rule->category->slug, 'name' => $rule->category->name] : null,
             CommissionRuleScope::Product => $rule->product ? ['id' => $rule->product->public_id, 'name' => $rule->product->name] : null,
             CommissionRuleScope::Affiliate => $rule->affiliate ? ['id' => $rule->affiliate->public_id, 'name' => $rule->affiliate->display_name] : null,
+            CommissionRuleScope::Campaign => $rule->campaign ? ['id' => $rule->campaign->public_id, 'name' => $rule->campaign->name] : null,
         };
     }
 }

@@ -24,6 +24,7 @@ class ReferralLinkRequest extends FormRequest
             // Slugs are fixed once created because the link may already be printed.
             'slug' => $creating ? ['required', 'string', 'min:2', 'max:60', 'regex:/^[a-z0-9][a-z0-9-]*$/'] : ['prohibited'],
             'product_id' => ['nullable', 'string', 'ulid', Rule::exists('products', 'public_id')->where('is_active', true)],
+            'campaign_id' => ['nullable', 'string', 'ulid'],
             'utm_source' => $tag,
             'utm_medium' => $tag,
             'utm_campaign' => $tag,

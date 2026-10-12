@@ -47,7 +47,7 @@ class CommissionService
             return $created;
         }
 
-        $attribution = $order->attribution()->with('affiliate')->first();
+        $attribution = $order->attribution()->with(['affiliate', 'campaign.products'])->first();
         if (! $attribution) {
             return $created;
         }
@@ -60,14 +60,17 @@ class CommissionService
         }
 
         $placedAt = $order->placed_at;
-        $candidates = $this->rules->candidates($affiliate, $placedAt);
+        // The campaign was checked when the order was placed; switching it off since stops its rate.
+        $campaign = $attribution->campaign?->is_active ? $attribution->campaign : null;
+        $campaignProducts = $campaign && $campaign->products->isNotEmpty() ? $campaign->products->pluck('id')->all() : null;
+        $candidates = $this->rules->candidates($affiliate, $placedAt, $campaign);
         $holdingDays = (int) config('affiliate.commissions.holding_period_days');
         $eligibleAt = $order->paid_at->copy()->addDays($holdingDays);
         $hold = ! $affiliate->status->isEligibleToEarn();
         $skipped = [];
 
         foreach ($order->items()->orderBy('id')->get() as $item) {
-            $rule = $this->rules->pick($candidates, $item->product_id, $item->category_id);
+            $rule = $this->rules->pick($candidates, $item->product_id, $item->category_id, $campaignProducts);
 
             $reason = match (true) {
                 $rule === null => 'no_rule',
@@ -133,6 +136,7 @@ class CommissionService
                     'attribution' => [
                         'source' => $attribution->source->value,
                         'policy' => $attribution->policy,
+                        'campaign' => $campaign?->public_id,
                     ],
                     'policy' => [
                         'base' => 'line total after discounts; shipping and payment fees excluded',

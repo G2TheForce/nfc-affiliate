@@ -19,6 +19,7 @@ class AffiliateLinkResource extends JsonResource
             'slug' => $this->slug,
             'url' => url('/ref/'.$this->affiliate->referral_code.'/'.$this->slug),
             'product' => $this->product ? ['id' => $this->product->public_id, 'name' => $this->product->name, 'slug' => $this->product->slug] : null,
+            'campaign' => $this->campaign ? ['id' => $this->campaign->public_id, 'name' => $this->campaign->name] : null,
             'utm_source' => $this->utm_source,
             'utm_medium' => $this->utm_medium,
             'utm_campaign' => $this->utm_campaign,

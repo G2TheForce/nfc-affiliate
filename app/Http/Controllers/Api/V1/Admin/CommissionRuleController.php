@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CommissionRuleRequest;
 use App\Http\Resources\Commissions\CommissionRuleResource;
 use App\Models\AffiliateProfile;
+use App\Models\Campaign;
 use App\Models\CommissionPlan;
 use App\Models\CommissionRule;
 use App\Models\Product;
@@ -24,7 +25,7 @@ use Illuminate\Validation\ValidationException;
 
 class CommissionRuleController extends Controller
 {
-    private const RELATIONS = ['plan', 'category', 'product', 'affiliate'];
+    private const RELATIONS = ['plan', 'category', 'product', 'affiliate', 'campaign'];
 
     public function __construct(private readonly CommissionRuleService $rules) {}
 
@@ -41,7 +42,7 @@ class CommissionRuleController extends Controller
                 ->when($filters['scope'] ?? null, fn ($q, $s) => $q->where('scope', $s))
                 ->when(array_key_exists('active', $filters) && $filters['active'] !== null, fn ($q) => $q->where('is_active', (bool) $filters['active']))
                 // Same order as precedence, so the list reads top to bottom like the resolver.
-                ->orderByRaw("CASE scope WHEN 'affiliate' THEN 1 WHEN 'product' THEN 2 WHEN 'category' THEN 3 WHEN 'plan' THEN 4 ELSE 5 END")
+                ->orderByRaw("CASE scope WHEN 'campaign' THEN 0 WHEN 'affiliate' THEN 1 WHEN 'product' THEN 2 WHEN 'category' THEN 3 WHEN 'plan' THEN 4 ELSE 5 END")
                 ->orderByDesc('starts_at')
                 ->paginate(100)
         );
@@ -122,6 +123,7 @@ class CommissionRuleController extends Controller
             CommissionRuleScope::Category => ProductCategory::where('slug', $id)->value('id'),
             CommissionRuleScope::Product => Product::where('public_id', $id)->value('id'),
             CommissionRuleScope::Affiliate => AffiliateProfile::where('public_id', $id)->value('id'),
+            CommissionRuleScope::Campaign => Campaign::where('public_id', $id)->value('id'),
             CommissionRuleScope::Global => null,
         };
 

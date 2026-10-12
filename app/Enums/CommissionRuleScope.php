@@ -9,6 +9,7 @@ enum CommissionRuleScope: string
     case Category = 'category';
     case Product = 'product';
     case Affiliate = 'affiliate';
+    case Campaign = 'campaign';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum CommissionRuleScope: string
             self::Category => 'Product category',
             self::Product => 'Product',
             self::Affiliate => 'One affiliate',
+            self::Campaign => 'Campaign',
         };
     }
 
@@ -30,6 +32,7 @@ enum CommissionRuleScope: string
             self::Category => 'product_category_id',
             self::Product => 'product_id',
             self::Affiliate => 'affiliate_profile_id',
+            self::Campaign => 'campaign_id',
         };
     }
 }

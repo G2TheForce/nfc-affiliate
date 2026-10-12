@@ -8,9 +8,9 @@ use Illuminate\Support\Str;
 
 class AffiliateLink extends Model
 {
-    protected $fillable = ['name', 'slug', 'product_id', 'utm_source', 'utm_medium', 'utm_campaign', 'is_active'];
+    protected $fillable = ['name', 'slug', 'product_id', 'utm_source', 'utm_medium', 'utm_campaign', 'is_active', 'campaign_id'];
 
-    protected $hidden = ['id', 'affiliate_profile_id', 'product_id'];
+    protected $hidden = ['id', 'affiliate_profile_id', 'product_id', 'campaign_id'];
 
     protected static function booted(): void
     {
@@ -37,5 +37,10 @@ class AffiliateLink extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 }
