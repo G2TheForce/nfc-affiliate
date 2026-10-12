@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
+use App\Http\Controllers\Api\V1\Admin\OrderOperationsController;
+use App\Http\Controllers\Api\V1\Admin\PaymentAttemptController;
 use App\Http\Controllers\Api\V1\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Api\V1\Admin\PingController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
@@ -31,6 +33,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
 use App\Http\Controllers\Api\V1\Store\CheckoutController;
 use App\Http\Controllers\Api\V1\Store\CustomerOrderController;
+use App\Http\Controllers\Api\V1\Store\PaymentController as StorePaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -62,6 +65,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('cart/quote', [CheckoutController::class, 'quote'])->name('cart.quote');
         Route::post('orders', [CheckoutController::class, 'store'])
             ->middleware('throttle:checkout')->name('orders.store');
+        // Online payment (ADR 0011): the customer's own order, by session or checkout access token.
+        Route::get('payment-methods', [StorePaymentController::class, 'methods'])->name('payment-methods');
+        Route::post('orders/{order}/payments', [StorePaymentController::class, 'start'])
+            ->whereUlid('order')->middleware('throttle:checkout')->name('orders.payments.start');
+        Route::get('orders/{order}/payment-status', [StorePaymentController::class, 'status'])
+            ->whereUlid('order')->name('orders.payments.status');
     });
 
     // Authenticated endpoints
@@ -164,7 +173,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::post('{order}/attribution', [OrderController::class, 'attribute'])->middleware('permission:'.Permission::AttributionManual->value)->name('attribution');
                     Route::post('{order}/payments', [OrderController::class, 'confirmPayment'])->middleware('permission:'.Permission::PaymentsConfirm->value)->name('payments.store');
                     Route::post('{order}/refunds', [OrderController::class, 'refund'])->middleware('permission:'.Permission::RefundsRecord->value)->name('refunds.store');
+                    Route::post('{order}/fulfilment', [OrderOperationsController::class, 'fulfil'])->middleware('permission:'.Permission::OrdersManage->value)->name('fulfilment');
+                    Route::post('{order}/disputes', [OrderOperationsController::class, 'openDispute'])->middleware('permission:'.Permission::RefundsRecord->value)->name('disputes.store');
                 });
+                Route::post('disputes/{dispute}/resolve', [OrderOperationsController::class, 'resolveDispute'])
+                    ->whereUlid('dispute')->middleware('permission:'.Permission::RefundsRecord->value)->name('disputes.resolve');
+
+                Route::get('payment-attempts', [PaymentAttemptController::class, 'index'])->middleware('permission:'.Permission::OrdersView->value)->name('payment-attempts.index');
+                Route::post('payment-attempts/{attempt}/recheck', [PaymentAttemptController::class, 'recheck'])
+                    ->whereUlid('attempt')->middleware(['permission:'.Permission::PaymentsConfirm->value, 'throttle:20,1'])->name('payment-attempts.recheck');
+                Route::post('payment-attempts/{attempt}/resolve', [PaymentAttemptController::class, 'resolve'])
+                    ->whereUlid('attempt')->middleware('permission:'.Permission::PaymentsConfirm->value)->name('payment-attempts.resolve');
 
                 $rules = 'permission:'.Permission::CommissionRulesManage->value;
                 $commissionsView = 'permission:'.Permission::CommissionsView->value;

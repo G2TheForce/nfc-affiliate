@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase6
+  version: 1.0.0-phase7
   description: |
     Phases 1-6. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
@@ -115,6 +115,12 @@ components:
         total_minor: { type: integer }
         coupon_code: { type: [string, 'null'] }
         placed_at: { type: string, format: date-time }
+        fulfilment_status: { type: string, enum: [unfulfilled, processing, shipped, delivered], description: 'Delivery progress, separate from payment (cash on delivery ships before it is paid)' }
+        fulfilment_label: { type: string }
+        carrier: { type: [string, 'null'] }
+        tracking_number: { type: [string, 'null'] }
+        shipped_at: { type: [string, 'null'], format: date-time }
+        delivered_at: { type: [string, 'null'], format: date-time }
         items: { type: array, items: { type: object, properties: { sku: { type: string }, name: { type: string }, unit_price_minor: { type: integer }, quantity: { type: integer }, discount_minor: { type: integer }, line_total_minor: { type: integer } } } }
     AffiliateLink:
       type: object
@@ -252,6 +258,29 @@ components:
         issues: { type: array, items: { type: object } }
         triggered_by: { type: string }
         finished_at: { type: string, format: date-time }
+    PaymentAttempt:
+      type: object
+      description: One customer attempt to pay online. Only the provider's status API can complete it.
+      properties:
+        id: { type: string }
+        order: { type: object, properties: { id: { type: string }, order_number: { type: string } } }
+        provider: { type: string, enum: [esewa, khalti] }
+        provider_reference: { type: [string, 'null'], description: eSewa transaction_uuid or Khalti pidx }
+        provider_transaction_id: { type: [string, 'null'] }
+        amount_minor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [initiated, pending, completed, failed, needs_review] }
+        status_label: { type: string }
+        provider_status: { type: [string, 'null'], example: COMPLETE }
+        review_reason: { type: [string, 'null'] }
+        reviewed_by: { type: [string, 'null'] }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        review_note: { type: [string, 'null'] }
+        check_count: { type: integer }
+        last_checked_at: { type: [string, 'null'], format: date-time }
+        next_check_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
   responses:
     Unauthenticated: { description: Not signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
     Forbidden: { description: 'Missing permission, disabled account or unverified email', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
@@ -647,11 +676,50 @@ paths:
                 coupon_code: { type: [string, 'null'] }
                 referral_code: { type: [string, 'null'], description: An affiliate's referral code or slug }
       responses:
-        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' } } } } } }
+        '201': { description: 'Created. meta.access_token (guests) lets the browser pay and follow this order; it is shown only once.', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' }, meta: { type: object, properties: { access_token: { type: string } } } } } } } }
         '200': { description: Replay of an earlier request with the same Idempotency-Key }
         '409': { description: Idempotency-Key reused for a different request }
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooMany' }
+  /store/payment-methods:
+    get:
+      security: []
+      summary: Online payment providers that are switched on (eSewa, Khalti), with each one's minimum amount
+      responses:
+        '200': { description: 'data: [{ key, label, minimum_minor }]' }
+  /store/orders/{order}/payments:
+    post:
+      security: []
+      summary: Start an online payment for a pending order. Returns where to send the browser; nothing is paid yet.
+      description: |
+        Guests prove the order is theirs with the `access_token` returned once in `meta.access_token` when the
+        order was placed; signed-in owners may omit it. eSewa returns a signed form to POST; Khalti returns a page URL.
+      parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider: { type: string, enum: [esewa, khalti] }
+                access_token: { type: string }
+      responses:
+        '201': { description: 'data: { attempt_id, redirect: { type: form|redirect, url, fields? } }' }
+        '404': { description: Unknown order or wrong access token }
+        '422': { description: 'Order not awaiting payment, below the provider minimum, provider switched off or not responding' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /store/orders/{order}/payment-status:
+    get:
+      security: []
+      summary: Where the order's payment stands. May ask the provider again (at most every 20 seconds per attempt).
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: string } }
+        - { name: access_token, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 'data: { paid, order_status, attempt: { provider, status, outcome: paid|pending|failed|checking } | null }' }
+        '404': { description: Unknown order or wrong access token }
   /orders:
     get:
       summary: Your own orders
@@ -893,6 +961,87 @@ paths:
         '201': { description: 'Recorded; order detail plus meta.commission_reversed_minor' }
         '200': { description: Same reference already recorded for this order; nothing changed }
         '422': { description: 'Order not paid, line not in the order, or amount above what is left' }
+  /admin/orders/{order}/fulfilment:
+    post:
+      summary: Move delivery forward (processing, shipped with courier, delivered). Shipping emails the customer (orders.manage, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [processing, shipped, delivered] }
+                carrier: { type: [string, 'null'], maxLength: 60, description: Required for shipped }
+                tracking_number: { type: [string, 'null'], maxLength: 80 }
+      responses:
+        '200': { description: Order detail }
+        '422': { description: 'Backwards step, cancelled or refunded order, or missing courier' }
+  /admin/orders/{order}/disputes:
+    post:
+      summary: Open a dispute or chargeback on a paid order; holds its commission (refunds.record, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: order, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reference, amount_minor, reason]
+              properties:
+                reference: { type: string, description: Bank or wallet case number }
+                amount_minor: { type: integer, minimum: 1, description: At most the total not yet refunded }
+                reason: { type: string }
+      responses:
+        '201': { description: Order detail }
+        '422': { description: 'Order not paid, amount too high, a dispute already open, or reference reused' }
+  /admin/disputes/{dispute}/resolve:
+    post:
+      summary: Close a dispute. Won releases the hold; lost records a refund (DISPUTE-reference) and reverses commission (refunds.record, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: dispute, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, note]
+              properties:
+                outcome: { type: string, enum: [won, lost] }
+                note: { type: string }
+      responses:
+        '200': { description: Order detail }
+        '422': { description: Already closed }
+  /admin/payment-attempts:
+    get:
+      summary: Online payment attempts (orders.view). Default filter shows those waiting for staff review.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: filter, in: query, schema: { type: string, enum: [review, open, all] } }]
+      responses:
+        '200': { description: Paginated, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/PaymentAttempt' } } } } } } }
+  /admin/payment-attempts/{attempt}/recheck:
+    post:
+      summary: Ask the provider's status API now (payments.confirm, 20/min)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: attempt, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: The attempt after the check, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/PaymentAttempt' } } } } } }
+  /admin/payment-attempts/{attempt}/resolve:
+    post:
+      summary: Record what staff did about an attempt that needed review (payments.confirm, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: attempt, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string } } } } }
+      responses:
+        '200': { description: The attempt }
+        '422': { description: Nothing waiting for review }
   /admin/commission-rules:
     get:
       summary: Rules in precedence order (commission_rules.manage or commissions.view)

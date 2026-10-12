@@ -36,7 +36,15 @@ export interface CustomerOrder {
     shipping_city: string;
     shipping_address: string;
     placed_at: string;
+    fulfilment_status?: string;
+    fulfilment_label?: string;
+    carrier?: string | null;
+    tracking_number?: string | null;
+    shipped_at?: string | null;
+    delivered_at?: string | null;
     items: OrderItem[];
+    /** Kept in this browser only, from checkout. */
+    access_token?: string;
 }
 
 export interface Quote {

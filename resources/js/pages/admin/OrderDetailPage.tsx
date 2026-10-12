@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '@/auth/AuthContext';
 import { Alert, Button, Card, Modal, Select, Spinner, StatusBadge, TextArea } from '@/components/ui';
@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { OrderMoneyPanels } from './OrderMoneyPanels';
+import { OrderOperationsPanels } from './OrderOperationsPanels';
 import { BLOCK_REASONS, type AdminOrder } from './orderTypes';
 
 interface AffiliateOption {
@@ -26,11 +27,17 @@ export default function OrderDetailPage() {
     const [saving, setSaving] = useState(false);
     const { fieldErrors, message, capture, reset } = useFormErrors();
 
+    const load = useCallback(
+        () =>
+            api<{ data: AdminOrder }>(`/admin/orders/${id}`)
+                .then((r) => setOrder(r.data))
+                .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the order.')),
+        [id],
+    );
+
     useEffect(() => {
-        api<{ data: AdminOrder }>(`/admin/orders/${id}`)
-            .then((r) => setOrder(r.data))
-            .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the order.'));
-    }, [id]);
+        load();
+    }, [load]);
 
     const openAttribute = () => {
         reset();
@@ -175,6 +182,7 @@ export default function OrderDetailPage() {
                 )}
             </div>
             <OrderMoneyPanels order={order} onChange={setOrder} />
+            <OrderOperationsPanels order={order} onChange={setOrder} reload={load} />
             <Modal title={dialog === 'cancel' ? 'Cancel order' : 'Attribute order manually'} open={dialog !== null} onClose={() => setDialog(null)}>
                 <form onSubmit={submit} className="space-y-3">
                     {message && <Alert tone="error">{message}</Alert>}

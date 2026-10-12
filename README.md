@@ -49,6 +49,14 @@ php artisan schedule:work        # optional locally: commission maturation, reco
 
 With `MAIL_MAILER=log`, verification and reset emails are written to `storage/logs/`.
 
+Online payments are off until switched on in `.env`:
+
+- eSewa: set `ESEWA_ENABLED=true`, `ESEWA_MODE`, `ESEWA_PRODUCT_CODE` and `ESEWA_SECRET_KEY`. For eSewa's public test merchant, use product code `EPAYTEST` with the UAT secret from eSewa's developer docs.
+- Khalti: set `KHALTI_ENABLED=true`, `KHALTI_MODE` and `KHALTI_SECRET_KEY`. The sandbox key comes from test-admin.khalti.com.
+- `APP_URL` must be the address customers use, because the providers send the browser back to it.
+- Sandbox mode is refused in production.
+- `php artisan schedule:work` (or cron in production) runs `payments:recheck`, which confirms payments for customers who closed the browser before coming back.
+
 ## Useful commands
 
 | Command | What it does |
@@ -61,6 +69,7 @@ With `MAIL_MAILER=log`, verification and reset emails are written to `storage/lo
 | `php artisan affiliate:prune-referral-data` | Apply click retention (also scheduled daily) |
 | `php artisan affiliate:mature-commissions` | Approve and release commissions past the holding period (also scheduled hourly) |
 | `php artisan affiliate:reconcile-commissions` | Check the ledger against commissions and adjustments (also scheduled daily) |
+| `php artisan payments:recheck` | Ask eSewa or Khalti about unfinished online payments (also scheduled every five minutes) |
 | `vendor/bin/pint` | Format PHP code |
 
 ## Documentation

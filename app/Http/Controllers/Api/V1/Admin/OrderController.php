@@ -108,12 +108,13 @@ class OrderController extends Controller
             ->response()->setStatusCode($result['replayed'] ? 200 : 201);
     }
 
-    private function detail(Order $order): OrderResource
+    public function detail(Order $order): OrderResource
     {
         $order->refresh()->load([
             'items' => fn ($q) => $q->withSum('refundItems as refunded_minor', 'amount_minor'),
             'coupon', 'attribution.affiliate', 'attribution.click.link', 'attribution.decider',
             'payment.confirmer', 'refunds.items.orderItem', 'refunds.recorder', 'commissions.affiliate',
+            'paymentAttempts.reviewer', 'disputes.opener', 'disputes.resolver',
         ]);
 
         return OrderResource::detail($order);

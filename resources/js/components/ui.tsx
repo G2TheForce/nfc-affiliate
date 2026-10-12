@@ -187,6 +187,16 @@ const STATUS_STYLES: Record<string, string> = {
     drift: 'bg-danger/10 text-danger',
     requested: 'bg-warning/10 text-warning',
     failed: 'bg-danger/10 text-danger',
+    initiated: 'bg-warning/10 text-warning',
+    completed: 'bg-success/10 text-success',
+    needs_review: 'bg-danger/10 text-danger',
+    open: 'bg-danger/10 text-danger',
+    won: 'bg-success/10 text-success',
+    lost: 'bg-line text-muted',
+    unfulfilled: 'bg-line text-muted',
+    processing: 'bg-brand-50 text-brand-700',
+    shipped: 'bg-brand-50 text-brand-700',
+    delivered: 'bg-success/10 text-success',
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {

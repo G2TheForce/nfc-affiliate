@@ -39,7 +39,7 @@ export default function CheckoutPage() {
         reset();
         setSubmitting(true);
         try {
-            const res = await api<{ data: CustomerOrder }>('/store/orders', {
+            const res = await api<{ data: CustomerOrder; meta?: { access_token?: string } }>('/store/orders', {
                 method: 'POST',
                 headers: { 'Idempotency-Key': idempotencyKey.current },
                 body: {
@@ -49,7 +49,8 @@ export default function CheckoutPage() {
                     items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
                 },
             });
-            sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(res.data));
+            // The access token lets this browser pay for the order and see the result.
+            sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ ...res.data, access_token: res.meta?.access_token }));
             sessionStorage.removeItem(COUPON_KEY);
             // The confirmation page empties the cart; doing it here would
             // re-render this page with an empty cart and bounce to /cart.

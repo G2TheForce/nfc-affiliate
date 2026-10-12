@@ -3,9 +3,8 @@
 namespace App\Enums;
 
 /**
- * How the customer paid, as recorded by staff confirming a manual payment.
- * Wallet payments recorded here were checked in the merchant dashboard by
- * staff; automatic provider verification arrives in Phase 7.
+ * How the customer paid. The payment's provider says how it was verified:
+ * "manual" (staff checked it) or the online provider's status API.
  */
 enum PaymentMethod: string
 {
@@ -21,9 +20,9 @@ enum PaymentMethod: string
         return match ($this) {
             self::BankTransfer => 'Bank transfer',
             self::CashOnDelivery => 'Cash on delivery',
-            self::Esewa => 'eSewa (checked manually)',
-            self::Khalti => 'Khalti (checked manually)',
-            self::Fonepay => 'Fonepay QR (checked manually)',
+            self::Esewa => 'eSewa',
+            self::Khalti => 'Khalti',
+            self::Fonepay => 'Fonepay QR',
             self::Other => 'Other',
         };
     }

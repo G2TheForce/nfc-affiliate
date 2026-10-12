@@ -87,6 +87,22 @@ Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`,
 - Screens: `/account/affiliate/dashboard`, `/admin` (dashboard), `/admin/finance` and `/admin/reports`.
 - Full decision record: [ADR 0010](adr/0010-reporting.md).
 
+## Payments, disputes and delivery (Phase 7)
+
+- Gateways live in `App\Domain\Payments\Gateways` (`EsewaGateway`, `KhaltiGateway`) and are switched on in `config/payments.php`.
+  - `ProviderPaymentService` starts attempts, handles provider redirects and re-checks status. A payment counts only when the provider's status API says it is complete.
+  - `PaymentRecorder` marks an order paid, for both online and manual payments.
+- Provider redirects arrive at `/payments/esewa/return`, `/payments/esewa/failure/{attempt}` and `/payments/khalti/return` (web routes, no session). Each is stored in `webhook_events`.
+- `payments:recheck` runs every five minutes.
+- Store endpoints: `GET /store/payment-methods`, `POST /store/orders/{order}/payments` and `GET /store/orders/{order}/payment-status`. Guests authenticate with the order's access token.
+- Admin endpoints:
+  - `POST /admin/orders/{order}/fulfilment`
+  - `POST /admin/orders/{order}/disputes`
+  - `POST /admin/disputes/{dispute}/resolve`
+  - `GET /admin/payment-attempts` with `.../recheck` and `.../resolve`
+- `DisputeService` holds commission while a dispute is open. A lost dispute becomes a refund. `FulfilmentService` moves delivery forward and emails the customer on shipping.
+- Full decision record: [ADR 0011](adr/0011-payments-disputes-fulfilment.md).
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -106,7 +122,9 @@ Validation errors use Laravel's standard shape:
 | `password-reset` | 5/min per IP |
 | verification link and resend | 6/min |
 | `store` (catalog, quote, referral) | 60/min per IP |
-| `checkout` (place order) | 10/min per IP |
+| `checkout` (place order, start an online payment) | 10/min per IP |
+| provider payment redirects | 30/min per IP |
+| staff "check with provider now" | 20/min per user |
 | on-demand reconciliation | 6/min per user |
 | payout request, payout details change | 6/min per user |
 | `exports` (report CSV/XLSX) | 10/min per user |
