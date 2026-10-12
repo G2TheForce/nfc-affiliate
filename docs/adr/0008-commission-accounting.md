@@ -17,19 +17,20 @@ The master prompt asks for a commission engine with deterministic rule precedenc
 
 ### Rules and precedence
 
-Rule scopes: global, plan, category, product, affiliate. Kinds: percent (basis points), fixed (per unit, in a currency), exclude (product and category only). For each order line the first match wins:
+Rule scopes: global, plan, category, product, affiliate, campaign. Kinds: percent (basis points), fixed (per unit, in a currency), exclude (product and category only). For each order line the first match wins:
 
 1. product exclusion, then category exclusion
-2. affiliate override
-3. product rate
-4. category rate
-5. the affiliate's plan default
-6. global default
+2. campaign rate, when the order came through a campaign that covers the product
+3. affiliate override
+4. product rate
+5. category rate
+6. the affiliate's plan default
+7. global default
 
 - Two active rules for the same target with overlapping dates are refused when saved, so every step has at most one candidate.
 - Rules are evaluated as they stood when the order was **placed** (what the affiliate promoted), with the affiliate's plan at payment time.
 - No matching rule means no commission. Production starts with no rules; the business must create at least a global default.
-- Campaign overrides (master prompt step 2) are not built yet; they will slot in at step 2 when campaigns exist.
+- Campaigns (added in Phase 10): an order belongs to a campaign when it is attributed through a coupon or tracking link linked to that campaign, the campaign is running when the order is placed, and the affiliate takes part. Checkout stores the campaign on the order's attribution. If staff switch the campaign off before the order is paid, its rate no longer applies. A campaign with no products ticked covers every product. The campaign is recorded in the commission snapshot.
 - Tiered, recurring and multi-level commissions are not implemented. Multi-level stays disabled pending legal advice.
 - A coupon with `earns_commission = false` produces no commission.
 

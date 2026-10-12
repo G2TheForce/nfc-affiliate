@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Payouts\PayoutMethodService;
 use App\Domain\Payouts\PayoutService;
+use App\Enums\FraudFlagStatus;
 use App\Enums\PayoutStatus;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Commissions\LedgerEntryResource;
 use App\Http\Resources\Payouts\StaffPayoutResource;
+use App\Models\FraudFlag;
 use App\Models\Payout;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -74,6 +76,11 @@ class PayoutController extends Controller
 
         return ['data' => array_merge((new StaffPayoutResource($payout))->resolve($request), [
             'destination_details' => $destination,
+            // Open fraud flags on this affiliate, so the reviewer sees them before approving.
+            'open_fraud_flags' => FraudFlag::query()->where('affiliate_profile_id', $payout->affiliate_profile_id)
+                ->where('status', FraudFlagStatus::Open->value)->orderByDesc('detected_at')->get()
+                ->map(fn (FraudFlag $f) => ['id' => $f->public_id, 'signal_label' => $f->signal->label(), 'severity' => $f->severity, 'detected_at' => $f->detected_at?->toIso8601String()])
+                ->all(),
             'commissions' => $payout->items->map(fn ($item) => [
                 'id' => $item->commission->public_id,
                 'order_number' => $item->commission->snapshot['order']['number'] ?? null,

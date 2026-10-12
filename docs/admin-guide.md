@@ -49,7 +49,7 @@ Every sign-in, failed sign-in and sign-out is written to the audit log. Repeated
 | Suspend, reinstate, deactivate, reactivate affiliates | yes | yes | | |
 | Publish new affiliate terms | yes | | | |
 | Products and categories | yes | | | |
-| Coupons | yes | yes | | |
+| Coupons, campaigns, marketing materials | yes | yes | | |
 | Cancel unpaid orders, delivery steps | yes | | | |
 | Change an order's affiliate (manual attribution) | yes | yes | | |
 | Confirm payment received, check online payments | yes | | yes | |
@@ -57,6 +57,7 @@ Every sign-in, failed sign-in and sign-out is written to the audit log. Repeated
 | Commission rules and plans: change | yes | yes | | |
 | Commission rules and plans: view | yes | yes | yes | |
 | Hold, release hold, void commissions | yes | yes | | |
+| Fraud review | yes | yes | | |
 | Release approved commissions | yes | | yes | |
 | Propose / approve adjustments | yes | | yes | |
 | See payouts | yes | yes | yes | |
@@ -66,7 +67,7 @@ Every sign-in, failed sign-in and sign-out is written to the audit log. Repeated
 | Export reports (CSV / Excel) | yes | | yes | |
 | Audit log | yes | | | |
 
-The left menu shows only the pages your role can open: **Dashboard**, **Finance**, **Reports**, **Affiliates**, **Orders**, **Commissions**, **Adjustments**, **Payouts**, **Commission rules**, **Reconciliation**, **Referral report**, **Coupons**, **Products**, **Affiliate terms**, **Audit log**.
+The left menu shows only the pages your role can open: **Dashboard**, **Finance**, **Reports**, **Affiliates**, **Orders**, **Commissions**, **Adjustments**, **Payouts**, **Commission rules**, **Fraud review**, **Reconciliation**, **Referral report**, **Campaigns**, **Coupons**, **Marketing materials**, **Products**, **Affiliate terms**, **Audit log**.
 
 **Separation of duties built into the system**
 
@@ -127,7 +128,7 @@ Published terms **cannot be edited or removed**. Approved affiliates are asked t
 
 ---
 
-## 3. Catalogue and coupons
+## 3. Catalogue, coupons, campaigns and marketing materials
 
 ### 3.1 Products and categories (Super Administrator)
 
@@ -143,12 +144,83 @@ To add a category, type it under **Categories** and press **Add**. The web addre
 1. Open **Coupons** and press **New coupon**, or **Edit**.
 2. **Code**: letters, numbers, `-` and `_`. It is stored in capitals. It cannot change once a customer has used it.
 3. **Affiliate**: choose one to make it that affiliate's coupon, or **None (store-wide coupon)**. A sale made with an affiliate's coupon is credited to that affiliate, even if the customer clicked another affiliate's link.
-4. **Type**: **Percentage** (up to 100%) or **Fixed amount**. Then **Percent off** or **Amount off (NPR)**.
-5. Optional limits: **Minimum order (NPR)**, **Maximum discount (NPR)**, **Total uses**, **Uses per customer**, **Starts**, **Ends**.
-6. **Applies to**: tick products, or tick none for all products.
-7. Untick **Active** to switch the coupon off. Press **Save**.
+4. **Campaign**: choose a campaign to link the coupon to it, or **None**. Orders made with the coupon then count for that campaign and earn its rate (see 3.3). Ended campaigns are not offered.
+5. **Type**: **Percentage** (up to 100%) or **Fixed amount**. Then **Percent off** or **Amount off (NPR)**.
+6. Optional limits: **Minimum order (NPR)**, **Maximum discount (NPR)**, **Total uses**, **Uses per customer**, **Starts**, **Ends**.
+7. **Applies to**: tick products, or tick none for all products.
+8. Untick **Active** to switch the coupon off. Press **Save**.
 
 Example: code `DASHAIN10`, Percentage 10, Maximum discount NPR 500, Ends 2026-10-31.
+
+The coupon list shows the linked campaign after the other details, for example "campaign: Dashain sale".
+
+### 3.3 Campaigns (Super Administrator, Affiliate Manager)
+
+A campaign is a promotion with set dates, for chosen products and chosen affiliates. It can pay its own commission rate.
+
+**Create or change a campaign**
+
+1. Open **Campaigns** and press **New campaign**, or **Edit** on a row.
+2. **Name**: affiliates see this name.
+3. **Description (optional)**: what to promote and how. Affiliates see this too.
+4. **First day** and **Last day (optional)**. The campaign starts at the beginning of the first day and ends at the end of the last day, Nepal time. Leave the last day empty for no end date.
+5. **Commission budget (NPR, optional)**: for tracking only. Commission is **not** stopped when the budget is reached.
+6. Leave **Open to all affiliates** ticked, or untick it and tick at least one name under **Affiliates taking part**.
+7. **Products**: tick the products the campaign covers. Tick none to cover all products.
+8. **Active (untick to end the campaign now)**.
+9. Press **Save**.
+
+Campaigns are never deleted, because orders and rules point to them. To stop a campaign, untick **Active** or set a **Last day**.
+
+The list shows each campaign as **Running**, **Upcoming** or **Ended**, with its dates, affiliates and products. It also shows:
+
+- **Commission**: the campaign's rate, or "no campaign rule in force (normal rates apply)".
+- Paid orders, sales and commission so far. Sales are product prices after discounts. Commission is net of any reversals. Orders count as paid when their status is Paid or Partly refunded.
+- The budget, if you set one. A red line says when commission has gone over it.
+
+**Give the campaign its own rate**
+
+A campaign has no rate of its own until you add one in **Commission rules** (5.2):
+
+1. Open **Commission rules** and press **New rule**.
+2. **Applies to**: **A campaign**. Under **Which one**, choose the campaign. Ended campaigns are not listed.
+3. Choose **Percentage of what the customer paid** or **Fixed amount per unit**. A campaign rule cannot exclude products.
+4. Set **Starts** and **Ends** to match the campaign's dates, then press **Save rule**.
+
+The campaign rate beats affiliate overrides, product, category and plan rates. Product and category exclusions still win. It applies only to the products the campaign covers; other products in the same order earn the normal rate. The rule must be in force when the order is placed.
+
+**How an order joins a campaign**
+
+The campaign is chosen at checkout, from the first of these that applies:
+
+1. the affiliate coupon the customer used, if it is linked to a campaign;
+2. the tracking link the customer clicked, if the affiliate made it for a campaign;
+3. a store-wide coupon used on the order, if it is linked to a campaign.
+
+It counts only if the campaign is running at that moment and the affiliate who gets the sale takes part in it. An order that comes through the affiliate's main link, or a referral code typed at checkout, does not join a campaign. It earns the normal rates.
+
+Commission is worked out when the order is paid. If you untick **Active** before then, the order earns the normal rates instead.
+
+Affiliates see the campaigns open to them on their **Referral links** page and make campaign links there. To give an affiliate a campaign coupon, create a coupon with both the **Affiliate** and the **Campaign** filled in (3.2).
+
+Example: "Tihar metal cards", 1 to 15 November, one product, all affiliates, with a 15% campaign rule for the same dates. Orders through a Tihar campaign link earn 15% on the metal card, and the normal rate on anything else in the basket.
+
+### 3.4 Marketing materials (Super Administrator, Affiliate Manager)
+
+Banners, photos, videos, PDFs, ZIP media kits and ready-to-post text for affiliates. Affiliates find them under **Marketing materials** in their account.
+
+1. Open **Marketing materials** and press **Add material**.
+2. **Title**: affiliates see this, and it also names the downloaded file.
+3. **File (optional for post text)**: a JPG, PNG, WebP or GIF image, an MP4 video, a PDF or a ZIP file, up to 20 MB. The system checks the file's real content, not its name. Other types, including SVG images, are refused.
+4. **Description (optional)**: where and how to use it.
+5. **Post text (optional)**: text affiliates can copy with one tap. A material with no file must have post text.
+6. **Campaign**: **None (always shown)**, or a campaign. A campaign's materials are shown only while it runs, and only to affiliates taking part.
+7. **Product**: optional. It is shown on the card as a label.
+8. Leave **Shown to affiliates** ticked, or untick it to hide the material. Press **Save**.
+
+Each card shows how many times affiliates have downloaded it. Image previews do not count as downloads.
+
+You cannot change a material's file. Add a new material with the new file and **Delete** the old one. Deleting removes the file for good.
 
 ---
 
@@ -260,12 +332,12 @@ This is not possible once commission exists on the order, or on cancelled or ref
 
 Open **Commission rules**. Without any rule, paid orders earn no commission. Start with a global default.
 
-For each product in a paid order, the first matching rule wins, in this order: product or category exclusion, affiliate override, product rate, category rate, plan default, global default. The rules in force when the order was placed are used.
+For each product in a paid order, the first matching rule wins, in this order: product or category exclusion, campaign rate (only for orders that came through a campaign, see 3.3), affiliate override, product rate, category rate, plan default, global default. The rules in force when the order was placed are used.
 
 To add a rule (Super Admin, Affiliate Manager):
 
 1. Press **New rule** and give it a **Name**.
-2. **Applies to**: **Everyone (global default)**, **A commission plan**, **A product category**, **A product** or **One affiliate (override)**. Then choose **Which one**.
+2. **Applies to**: **Everyone (global default)**, **A commission plan**, **A product category**, **A product**, **One affiliate (override)** or **A campaign**. Then choose **Which one**.
 3. **Commission**: **Percentage of what the customer paid** (enter **Rate (%)**, at most 50%), **Fixed amount per unit** (enter **Amount per unit (NPR)**), or, for products and categories only, **No commission (exclude)**.
 4. Set **Starts** and optionally **Ends (optional)**. Two active rules for the same target cannot overlap in time.
 5. Press **Save rule**.
@@ -301,6 +373,38 @@ Balances are never edited directly. A correction is a separate entry that a seco
 
 Only an approved adjustment changes the affiliate's available balance. Example: a bank returns a paid payout of NPR 3,200. Propose "Add to balance, NPR 3,200" with the bank's note, and have a colleague approve it.
 
+### 5.5 Fraud review (Affiliate Manager, Super Admin)
+
+The system looks for unusual patterns and raises a **fraud flag** for a person to check. **A flag never blocks, holds or cancels anything by itself.** You decide what to do, using the usual tools: hold or void commission (5.3), reject a payout (6.1), or suspend the affiliate (2.2).
+
+**What is checked**
+
+Every night at 04:00 the system checks each approved or suspended affiliate. Each payout request is also checked as it comes in. The limits below are the defaults.
+
+| Flag | Severity | Raised when | What to check |
+|---|---|---|---|
+| **Unusually high conversion** | Medium | Over the last 30 days, at least 5 paid orders came from link clicks, and they are more than 30% of the affiliate's unique clicks | Self-purchases or orders from friends. Compare customer names and addresses on the referred orders. |
+| **Many clicks, no orders** | Low | 1,000 or more unique clicks in the last 30 days, and no paid order | Bought or automated traffic. Check the referrer sites on the affiliate's clicks. |
+| **High refund rate** | Medium | Over the last 90 days, at least 5 paid orders, and 30% or more of them refunded in full or in part | Orders placed to earn commission and then refunded. |
+| **Sudden jump in earnings** | Medium | Commission in the last 7 days is at least NPR 10,000 and at least 5 times the weekly average of the 8 weeks before | A real campaign, or a burst of self-purchases or stolen-card orders. |
+| **Large payout request** | Low | A payout request of NPR 50,000 or more | Check the commissions in the payout before approving. |
+| **Payout soon after changing payout details** | High | A payout request within 7 days of the affiliate changing their payout details. Adding details for the first time does not count. | A taken-over account sending money to a new destination. Confirm the change with the affiliate by phone. |
+
+A nightly flag is not raised again for the same affiliate while one is open, or for 30 days after the last one. The two payout flags are raised once for each payout request.
+
+New flags are emailed to staff who can review fraud, and shown in their in-app notifications. Payout flags also go to staff who review payouts.
+
+**Review a flag**
+
+1. Open **Fraud review**. It shows **Open** flags first; use **Confirmed**, **Dismissed** or **All** to see others.
+2. Each flag shows the affiliate (click the name to open the profile), when it was raised, the figures that were measured, and **What to check**. A payout flag has a **Go to payouts** link.
+3. Look into it. Then press **Confirm problem** or **Dismiss**.
+4. Fill in **What you found** (at least 5 characters) and save. A flag can be reviewed only once.
+
+**Confirm problem** only records your finding. Then act: hold or void the commission from the affiliate's page, and reject the payout if one is waiting.
+
+The developer can change the limits in `.env` (the `AFFILIATE_FRAUD_*` settings). They are first guesses. If you see many flags that turn out fine, ask for them to be raised.
+
 ---
 
 ## 6. Payouts
@@ -311,7 +415,8 @@ Affiliates request a payout from their dashboard. A request takes the whole avai
 
 1. Open **Payouts**. The cards show **Waiting for review**, **Approved, not sent**, **Paid out** and **Failed or rejected**. Use the status buttons to filter.
 2. Click a payout to see the amount, method, the commissions it covers and the ledger.
-3. Press **Approve** (note optional) or **Reject** (**Reason, shown to the affiliate**). Rejecting returns the money to the affiliate's available balance. A request or an approved payout can be rejected.
+3. If a red box says **Open fraud flags on this affiliate**, check them in **Fraud review** (5.5) before approving or paying.
+4. Press **Approve** (note optional) or **Reject** (**Reason, shown to the affiliate**). Rejecting returns the money to the affiliate's available balance. A request or an approved payout can be rejected.
 
 A payout for a suspended or deactivated affiliate cannot be approved or paid. Reject it or reinstate the affiliate first.
 
@@ -352,7 +457,7 @@ Finance Managers and Super Admins can download any report **as CSV** or **as Exc
 
 ### 7.4 Audit log (Super Administrator)
 
-**Audit log** lists every important action, newest first: **When (Nepal time)**, **Action**, **By** and **Subject**. This includes sign-ins, approvals, rule changes, payments, refunds, holds, voids, adjustments, payouts, payout-detail views and exports. Entries cannot be edited or deleted from the app.
+**Audit log** lists every important action, newest first: **When (Nepal time)**, **Action**, **By** and **Subject**. This includes sign-ins, approvals, rule changes, campaign and marketing material changes, payments, refunds, holds, voids, adjustments, payouts, payout-detail views, exports, and fraud flags raised and reviewed. Entries cannot be edited or deleted from the app.
 
 ### 7.5 Notifications
 
@@ -364,8 +469,10 @@ Click **Notifications** in the header (a number shows unread items). Use **Mark 
 | Payout reviewers | New payout request | In app |
 | Payment confirmers | Online payment needs review | Email and in app |
 | Reconciliation viewers | Drift found | Email and in app |
+| Fraud reviewers | New fraud flags | Email and in app |
+| Payout reviewers | New fraud flags on a payout request | Email and in app |
 
-Customers are emailed a payment receipt and shipping details. Affiliates are emailed about their application, status changes, newly available commission, payout steps and payout-detail changes.
+Customers are emailed a payment receipt and shipping details. Affiliates are emailed about their application, status changes, each paid order credited to them and its commission, commission reversed by a refund or by staff, newly available commission, payout steps and payout-detail changes. Everyone gets an email when their password is reset. The email to an affiliate about cancelled commission never includes your reason.
 
 ---
 
@@ -386,6 +493,7 @@ Customers are emailed a payment receipt and shipping details. Affiliates are ema
 3. Review open disputes on orders and close any the bank has decided.
 4. Download **Balances owed (payout liability)** and **Refunds** for your records.
 5. Look at **Commissions** with **Hold: On hold** and ask the Affiliate Manager about old holds.
+6. Check **Fraud review** has no old open flags (Affiliate Manager or Super Admin).
 
 ---
 
@@ -397,7 +505,7 @@ Customers are emailed a payment receipt and shipping details. Affiliates are ema
 | An online payment **needs review** | Do not confirm it by hand. Check the merchant dashboard, act there, record any refund, then **Mark as dealt with** (4.4). |
 | A customer says they paid online but the order is still awaiting payment | Press **Check with eSewa/Khalti now**. If the provider still says pending, wait. The system keeps checking for 48 hours. |
 | A bank or wallet dispute or chargeback | **Open a dispute** on the order (4.8). Close it when the bank decides. |
-| Suspected affiliate fraud | **Hold** the commissions, add an internal note on the profile, **Suspend** if needed. **Void** only when confirmed. |
+| Suspected affiliate fraud, or a fraud flag | **Hold** the commissions, add an internal note on the profile, **Suspend** if needed. **Void** only when confirmed. Record what you found on the flag in **Fraud review** (5.5). |
 | A payout went to the wrong account | Tell the owner and the bank at once. A paid payout cannot be reopened. Any correction is an adjustment approved by a second person. |
 
 ---

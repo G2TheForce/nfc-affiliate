@@ -10,6 +10,8 @@ The numbers in this guide are the programme defaults. If the store changes a set
 
 ## 1. Create your account
 
+Want to know more first? Press **Earn with us** in the store menu (or go to `/affiliates`). That page explains how the programme works, with the store's current figures: the standard commission rate (if one is set), how long a click counts, the holding period, the payout minimum and the payout methods. It also shows who can join, common questions and the current programme terms. Press **Create an account to apply** to start, or **Apply from your account** if you are already signed in.
+
 1. On the store, press **Log in**, then **Create an account** (or go straight to `/register`).
 2. Fill in **Full name**, **Email**, **Phone (optional)**, **Password** and **Confirm password**.
    - Your password needs at least 12 characters, with upper and lower case letters and a number.
@@ -69,7 +71,7 @@ If we change the affiliate terms, a box called **Updated affiliate terms** appea
 
 When you are approved, you get a permanent 8-character **referral code**, for example `K7MPX4QA`. It never changes and is never given to anyone else. You can copy it with **Copy code** on the **Affiliate programme** page.
 
-New menu items also appear: **Affiliate dashboard**, **Referral links**, **Referral stats**, **Earnings** and **Payouts**.
+New menu items also appear: **Affiliate dashboard**, **Referral links**, **Marketing materials**, **Referral stats**, **Earnings** and **Payouts**.
 
 ### Your main link
 
@@ -90,10 +92,29 @@ Tracking links help you see which post or page brings orders.
    - **Name**: only you see this, for example "Instagram bio".
    - **Link address**: lower-case letters, numbers and hyphens, for example `insta-bio`. Your link becomes `…/ref/K7MPX4QA/insta-bio`. **This cannot be changed later**, so choose carefully.
    - **Opens product (optional)**: pick a product to send people straight to its page, or leave **Store home page**.
-   - **Campaign (optional)** and **Source (optional)**: short labels for your own reports, for example `dashain-sale` and `instagram`. Letters, numbers, dots, hyphens and underscores only.
+   - **For campaign (optional)**: shown only when there are campaigns open to you. See "Campaigns" below.
+   - **Campaign tag for your own tracking (optional)** and **Source (optional)**: short labels for your own reports, for example `dashain-sale` and `instagram`. Letters, numbers, dots, hyphens and underscores only. These labels do not join you to a campaign.
 3. Press **Create link**.
 
 You can have up to 100 tracking links. Use **Pause** to stop tracking a link on its own and **Resume** to turn it back on. A paused link still opens the store home page. Visits through it still count for you, but they appear under your main link, not under the paused link's name.
+
+### Campaigns
+
+Our team sometimes runs a **campaign**: a promotion with set dates, often on chosen products, sometimes with a higher commission rate. When a campaign is open to you, a box called **Campaigns you can promote** appears at the top of **Referral links**. For each campaign it shows:
+
+- the name and our description of what to promote;
+- the commission: the campaign rate, or "Your normal commission rate" if the campaign has no rate of its own;
+- the products it covers (or all products) and its last day;
+- your campaign coupon code, if we gave you one.
+
+To take part, press **Make a link for this campaign** (or **Make another link** if you already have one). The **New tracking link** form opens with the campaign already chosen. Give the link an address and press **Create link**. You can also choose the campaign under **For campaign (optional)** when you make any new link.
+
+**Only campaign links and campaign coupon codes count for a campaign.** An order that comes through your main link, or where the customer types your referral code, earns your normal rate.
+
+- The campaign rate applies only to the products the campaign covers. Other items in the same order earn your normal rate. Products that do not earn commission still earn nothing.
+- The order counts for the campaign only if it is placed while the campaign is running.
+- After a campaign ends, its links keep working and still credit sales to you, at your normal rate.
+- Campaign rates do not appear on the **My rates** tab of **Earnings**. They are shown in the campaign box.
 
 ### Coupon codes
 
@@ -103,7 +124,22 @@ Note: some coupons are set up so that they do not earn commission. We will tell 
 
 ---
 
-## 4. How sales are credited to you
+## 4. Marketing materials
+
+Open **Marketing materials** for banners, photos, videos, PDFs and ready-to-post text from our team.
+
+Each material shows its title, type and size, and any product or campaign it is for. Images show a preview.
+
+- Press **Download** to save the file. It is named after the material's title.
+- Press **Copy text** to copy the suggested post text, then paste it into your post.
+
+Always share materials together with your referral link or a tracking link, so orders are credited to you. The programme terms apply: no spam, fake reviews or misleading claims.
+
+Materials for a campaign are shown only while the campaign is running, and only if you take part in it.
+
+---
+
+## 5. How sales are credited to you
 
 When someone clicks your link, the store remembers it on that person's browser for **30 days**.
 
@@ -125,7 +161,7 @@ When someone clicks your link, the store remembers it on that person's browser f
 
 ---
 
-## 5. How commission works
+## 6. How commission works
 
 ### How much you earn
 
@@ -139,12 +175,12 @@ Commission is worked out on what the customer paid for the product after any dis
 
 | Stage | What it means |
 |---|---|
-| **Pending** | The order is paid. The commission waits for **14 days** in case of a refund. Each commission shows "available from" a date. |
+| **Pending** | The order is paid. The commission waits for **14 days** in case of a refund. Each commission shows "available from" a date. You get an email: "You earned commission on a new order". |
 | **Approved** | The 14 days have passed with no refund or hold. Normally this lasts only moments before the next step. |
 | **Available** | The money is yours to request. You get an email: "Commission added to your available balance". |
 | **In payout** | It is part of a payout request that has not been sent yet. |
 | **Paid** | We have sent it to you. |
-| **Reversed** | Taken back because the sale was refunded, or cancelled by our team. |
+| **Reversed** | Taken back because the sale was refunded, or cancelled by our team. You get an email: "Commission reversed". |
 
 The check for finished holding periods runs every hour, so a commission becomes available within about an hour of its date.
 
@@ -158,7 +194,7 @@ The check for finished holding periods runs every hour, so a commission becomes 
 
 ---
 
-## 6. Getting paid
+## 7. Getting paid
 
 ### Add your payout details
 
@@ -213,7 +249,7 @@ Tax treatment of affiliate payments (including any TDS withholding) is **to be c
 
 ---
 
-## 7. Your dashboard and reports
+## 8. Your dashboard and reports
 
 ### Affiliate dashboard
 
@@ -268,7 +304,7 @@ Each download uses the period chosen at the top of the dashboard.
 
 ---
 
-## 8. Emails you will receive
+## 9. Emails you will receive
 
 You also see these under **Notifications** at the top of every page.
 
@@ -277,13 +313,17 @@ You also see these under **Notifications** at the top of every page.
 - **Your affiliate application is approved** — includes your referral code.
 - **Update on your affiliate application** — if it is not approved, with the reason.
 - **Your affiliate membership is suspended / reinstated / reactivated / closed** — when your status changes, with any reason.
+- **You earned commission on a new order** — when an order credited to you is paid. It shows the last 4 characters of the order number, the commission, and the date it stops being pending if the order is not refunded. If your membership is not active, it says the commission is on hold. Customer details are never included.
+- **A customer you referred placed an order** — the same, for a paid order where no commission applies to the items.
+- **Commission reversed** — when commission is taken back because an order was refunded, or because our team cancelled it. It shows the amount and the last 4 characters of the order number. Contact us if you have questions about a cancellation.
 - **Commission added to your available balance** — when commission passes its holding period.
 - **Your payout details were changed** — every time your payout details are saved.
 - **Payout request received**, **Payout approved**, **Payout sent** (with the transfer reference), **Payout request declined**, **Payout could not be completed** — as your payout moves along. You do not get an email when you cancel a request yourself.
+- **Your password was changed** — after your password is reset. You are signed out on your other devices. **If you did not do this, reset your password straight away and contact us.** This email is not shown under **Notifications**.
 
 ---
 
-## 9. Leaving the programme
+## 10. Leaving the programme
 
 1. Open **Affiliate programme**.
 2. Under **Close membership**, press **Close my affiliate membership**.
@@ -305,10 +345,13 @@ Closing your affiliate membership does not delete your store account.
 
 ---
 
-## 10. Frequently asked questions
+## 11. Frequently asked questions
 
 **Why didn't my sale count?**
 Common reasons: the order is not paid yet, or it was cancelled; the customer clicked another affiliate's link after yours; they used someone else's coupon; more than 30 days passed since their click; they bought on a different device or browser; the buyer used your own account, email or phone; or the product does not earn commission. Ask customers to type your referral code at checkout to be safe.
+
+**Why didn't my order earn the campaign rate?**
+The order did not come through a link made for the campaign or a campaign coupon code; the product is not part of the campaign; the order was placed before the campaign started or after it ended; or our team switched the campaign off before the order was paid. Your normal rate applies instead.
 
 **Why did my commission go down?**
 A customer was refunded (fully or partly), a payment dispute was lost, or our team corrected a commission. Check the **Statement** tab on **Earnings** to see each movement.

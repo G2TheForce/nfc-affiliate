@@ -1,6 +1,6 @@
 # Architecture
 
-This describes release 1.0.0 (Phases 1 to 9). The full target design is in [phase-0-plan.md](phase-0-plan.md).
+This describes release 1.1.0 (Phases 1 to 10). The full target design is in [phase-0-plan.md](phase-0-plan.md).
 
 ## Overview
 
@@ -40,7 +40,7 @@ Users have an internal auto-increment `id`, which never leaves the server, and a
 
 `audit_logs` is append-only. The model throws on update or delete, and in production the database user should have only `INSERT, SELECT` on that table. `AuditLogger` redacts keys that look like secrets (password, token, secret, signature, api key, account number, card) and stores IP addresses as an HMAC keyed with `APP_KEY`, not as the raw address.
 
-About 50 actions are logged: sign-in and account events, every membership change, rule, plan, coupon and product change, payment confirmations, refunds, disputes, fulfilment steps, commission holds, voids and adjustments, payout steps, payout-detail views and changes, exports and manual attribution. `grep -rhoE "audit->log\('[a-z_.]+'" app | sort -u` lists them.
+About 60 actions are logged: sign-in and account events, every membership change, rule, plan, coupon, campaign (`campaign.created`, `campaign.updated`) and product change, marketing material changes (`marketing_asset.created`, `.updated`, `.deleted`), payment confirmations, refunds, disputes, fulfilment steps, commission holds, voids and adjustments, payout steps, payout-detail views and changes, exports, manual attribution, and fraud flags raised and reviewed (`fraud_flag.raised`, `fraud_flag.reviewed`). `grep -rhoE "audit->log\('[a-z_.]+'" app | sort -u` lists them.
 
 ## Affiliate onboarding (Phase 2)
 
@@ -103,6 +103,14 @@ About 50 actions are logged: sign-in and account events, every membership change
 - `DisputeService` holds commission while a dispute is open. A lost dispute becomes a refund. `FulfilmentService` moves delivery forward and emails the customer on shipping.
 - Full decision record: [ADR 0011](adr/0011-payments-disputes-fulfilment.md).
 
+## Phase 10 additions (1.1.0)
+
+- **Affiliate notices.** `CommissionService` sends `ReferredOrderPaid` when a referred order is paid (masked order number, commission, the date it stops being pending, or "no commission applies"), and `CommissionReversed` after a refund. `CommissionLifecycle::void` sends `CommissionReversed` without the staff reason. `PasswordResetController` emails `PasswordChanged` after a reset. All are queued and sent after commit.
+- **Fraud signals.** `App\Domain\Fraud\FraudDetector` raises `fraud_flags` for six signals (`FraudSignal`). The nightly `affiliate:detect-fraud` command checks conversion, clicks without orders, refund rate and earnings jumps. `PayoutService::request` checks large payouts and payouts soon after a payout-detail change, inside the request's transaction. Thresholds are in `config/affiliate.php` under `fraud` (`AFFILIATE_FRAUD_*`). A flag never holds, voids or blocks anything; reviewers record an outcome at `/admin/fraud` (`fraud.review`). `FraudFlagsRaised` notifies reviewers, and the payout detail shows the affiliate's open flags.
+- **Campaigns.** `campaigns` with `campaign_affiliate` and `campaign_product`. `CheckoutService::campaignFor` stores the order's campaign on `order_attributions.campaign_id`: the attributing coupon's campaign, else the clicked link's, else a store-wide coupon's, only while it runs and the affiliate takes part. `RuleResolver` puts campaign-scope rules after exclusions and before affiliate overrides ([ADR 0008](adr/0008-commission-accounting.md)). Campaigns are never deleted.
+- **Marketing materials.** `App\Domain\Marketing\MarketingAssetService` stores uploads on the private `local` disk (`storage/app/private/marketing`) under generated names, with the type sniffed from the content (no SVG). Files are served only through the API with `nosniff` and a sandbox CSP. Campaign materials are shown only while the campaign runs, to affiliates taking part.
+- **Public programme page.** `GET /store/affiliate-programme` (`AffiliateProgrammeController`) returns live settings, the global rate and the current terms for the `/affiliates` page.
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -130,6 +138,8 @@ Validation errors use Laravel's standard shape:
 | payout request, payout details change | 6/min per user |
 | affiliate application, closing own membership | 6/min per user |
 | referral link creation | 30/min per user |
+| marketing material upload | 30/min per user |
+| affiliate marketing file download | 120/min per user |
 | `exports` (report CSV/XLSX) | 10/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
@@ -142,11 +152,24 @@ Validation errors use Laravel's standard shape:
 
 ## Security headers
 
-`SecurityHeaders` middleware sets `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` and COOP on every response. In production it also sets HSTS (over HTTPS) and a strict Content-Security-Policy, and `AppServiceProvider` forces `https` URLs.
+`SecurityHeaders` middleware sets `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` and COOP on every response. In production it also sets HSTS (over HTTPS) and a strict Content-Security-Policy, and `AppServiceProvider` forces `https` URLs. The policy allows `blob:` images (for marketing previews fetched with the session). A response that already sets its own Content-Security-Policy, such as a marketing file download, keeps it.
+
+## Scheduled jobs
+
+From `routes/console.php`. Times are Nepal time where stated.
+
+| Command | When |
+|---|---|
+| `payments:recheck` | every five minutes |
+| `affiliate:mature-commissions` | hourly |
+| `affiliate:prune-referral-data` | daily at 03:15 |
+| `affiliate:reconcile-commissions` | daily at 03:30 |
+| `affiliate:detect-fraud` | daily at 04:00 |
+| `sanctum:prune-expired --hours=24`, `queue:prune-failed --hours=720` | daily |
 
 ## Configuration
 
-Business defaults (timezone, currency, attribution window, holding period, payout minimum, retention) live in `config/affiliate.php` and are set from `.env`. Timestamps are stored in UTC. Business dates use `AFFILIATE_BUSINESS_TIMEZONE` (Asia/Kathmandu).
+Business defaults (timezone, currency, attribution window, holding period, payout minimum, retention, marketing upload size, fraud thresholds) live in `config/affiliate.php` and are set from `.env`. Timestamps are stored in UTC. Business dates use `AFFILIATE_BUSINESS_TIMEZONE` (Asia/Kathmandu).
 
 ## Directory layout
 
@@ -158,14 +181,16 @@ app/Domain/Referrals      Click tracking, bot filtering, attribution, manual att
 app/Domain/Payments       Manual confirmation, eSewa/Khalti gateways, PaymentRecorder, refunds, disputes
 app/Domain/Commissions    Rules, calculation, lifecycle, maturation, ledger, adjustments, reconciliation
 app/Domain/Payouts        Payout methods (encrypted) and payouts
+app/Domain/Fraud          FraudDetector: fraud flags and their review
+app/Domain/Marketing      MarketingAssetService: uploads, safe file responses
 app/Domain/Reporting      Metrics, report registry, CSV/XLSX export
 app/Enums                 Roles, permissions and every status (orders, payments, commissions, payouts, ...)
 app/Support/Authorization PermissionMatrix
 app/Http/Controllers/Api/V1/{Auth,Admin,Affiliate,Store}
 app/Http/Requests         Form Requests (Auth, Admin, Affiliate, Store)
 app/Http/Resources        API Resources (public_id only, no secrets)
-app/Notifications         Queued mail: Auth, Affiliate, Store, Finance, Payouts
-app/Console/Commands      create-admin, permissions-matrix, mature/reconcile commissions, recheck payments, prune referral data
+app/Notifications         Queued mail: Auth, Affiliate, Store, Finance, Payouts, Fraud
+app/Console/Commands      create-admin, create-staff, set-user-status, permissions-matrix, mature/reconcile commissions, detect fraud, recheck payments, prune referral data
 resources/js              React app (auth pages, account area, staff area)
 docs/                     Plans, ADRs, API spec, guides
 ```

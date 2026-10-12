@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Affiliate\ReferralLinkRequest;
 use App\Http\Resources\AffiliateLinkResource;
 use App\Models\AffiliateLink;
+use App\Models\AffiliateProfile;
+use App\Models\Campaign;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +22,7 @@ class ReferralLinkController extends Controller
     public function index(Request $request): array
     {
         $profile = $this->trackedProfile($request);
-        $links = $profile->links()->with(['product', 'affiliate'])->get();
+        $links = $profile->links()->with(['product', 'affiliate', 'campaign'])->get();
 
         return ['data' => [
             'referral_code' => $profile->referral_code,
@@ -48,11 +50,11 @@ class ReferralLinkController extends Controller
             throw ValidationException::withMessages(['slug' => 'You already have a link with this address.']);
         }
 
-        $link = new AffiliateLink($this->attributes($data));
+        $link = new AffiliateLink($this->attributes($data, $profile));
         $link->affiliate_profile_id = $profile->id;
         $link->save();
 
-        return (new AffiliateLinkResource($link->load(['product', 'affiliate'])))->response()->setStatusCode(201);
+        return (new AffiliateLinkResource($link->load(['product', 'affiliate', 'campaign'])))->response()->setStatusCode(201);
     }
 
     public function update(ReferralLinkRequest $request, string $link): AffiliateLinkResource
@@ -60,21 +62,35 @@ class ReferralLinkController extends Controller
         $profile = $this->earningProfile($request);
         $model = $profile->links()->where('public_id', $link)->firstOrFail();
 
-        $model->fill($this->attributes($request->validated()))->save();
+        $model->fill($this->attributes($request->validated(), $profile))->save();
 
-        return new AffiliateLinkResource($model->load(['product', 'affiliate']));
+        return new AffiliateLinkResource($model->load(['product', 'affiliate', 'campaign']));
     }
 
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function attributes(array $data): array
+    private function attributes(array $data, AffiliateProfile $profile): array
     {
         if (array_key_exists('product_id', $data)) {
             $data['product_id'] = $data['product_id'] ? Product::where('public_id', $data['product_id'])->value('id') : null;
         }
+        if (array_key_exists('campaign_id', $data)) {
+            $data['campaign_id'] = $data['campaign_id'] ? $this->joinableCampaign($data['campaign_id'], $profile)->id : null;
+        }
 
         return $data;
+    }
+
+    private function joinableCampaign(string $publicId, AffiliateProfile $profile): Campaign
+    {
+        $campaign = Campaign::query()->where('public_id', $publicId)->runningAt(now())->openTo($profile)->first();
+
+        if (! $campaign) {
+            throw ValidationException::withMessages(['campaign_id' => 'This campaign is not running or is not open to you.']);
+        }
+
+        return $campaign;
     }
 }

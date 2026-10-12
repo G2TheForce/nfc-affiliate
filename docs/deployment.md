@@ -158,6 +158,7 @@ What it runs (times are Nepal time where stated):
 | `affiliate:mature-commissions` (approve and release after the holding period) | hourly |
 | `affiliate:prune-referral-data` (click retention) | 03:15 daily |
 | `affiliate:reconcile-commissions` (ledger check, emails finance on a problem) | 03:30 daily |
+| `affiliate:detect-fraud` (fraud flags for staff review) | 04:00 daily |
 | `sanctum:prune-expired`, `queue:prune-failed` | daily |
 
 `php artisan schedule:list` shows the next run of each.
@@ -172,7 +173,7 @@ server {
     server_name <domain> www.<domain>;
     root /var/www/affiliate/public;
     index index.php;
-    client_max_body_size 8m;
+    client_max_body_size 25m;
     server_tokens off;
 
     location /build/ {
@@ -204,7 +205,7 @@ sudo ln -s /etc/nginx/sites-available/affiliate /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The app sets its own security headers (CSP, HSTS, frame denial and others), so nginx does not need to add them. In `/etc/php/8.3/fpm/php.ini` set `expose_php = Off` and turn on opcache (`opcache.enable=1`, `opcache.validate_timestamps=0`; reload PHP-FPM on each deploy).
+The app sets its own security headers (CSP, HSTS, frame denial and others), so nginx does not need to add them. In `/etc/php/8.3/fpm/php.ini` set `expose_php = Off`, `upload_max_filesize = 24M` and `post_max_size = 25M` (marketing uploads are limited to 20 MB by `AFFILIATE_MARKETING_MAX_UPLOAD_KB`), and turn on opcache (`opcache.enable=1`, `opcache.validate_timestamps=0`; reload PHP-FPM on each deploy).
 
 ## 10. HTTPS
 

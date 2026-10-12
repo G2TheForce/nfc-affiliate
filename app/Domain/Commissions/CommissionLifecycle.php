@@ -8,6 +8,8 @@ use App\Enums\LedgerBucket;
 use App\Enums\LedgerEntryType;
 use App\Models\Commission;
 use App\Models\User;
+use App\Notifications\Affiliate\CommissionReversed;
+use App\Support\Privacy\Mask;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -125,6 +127,11 @@ class CommissionLifecycle
                 'held_at' => null,
             ])->save();
             $this->audit->log('commission.voided', $locked, ['reason' => $reason, 'amount_minor' => $net], $actor);
+            if ($net > 0) {
+                $locked->affiliate?->user?->notify((new CommissionReversed(
+                    Mask::orderNumber($locked->order->order_number), $net, $locked->currency, CommissionReversed::CAUSE_CANCELLED,
+                ))->afterCommit());
+            }
 
             return $locked;
         });

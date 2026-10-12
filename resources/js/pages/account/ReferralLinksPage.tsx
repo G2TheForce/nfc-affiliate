@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Button, Card, Field, Modal, Select, Spinner } from '@/components/ui';
+import { rateLabel } from '@/commissions/types';
 import { api, ApiError } from '@/lib/api';
+import { formatDate } from '@/lib/format';
 import { useFormErrors } from '@/lib/useFormErrors';
 import type { Product } from '@/store/types';
 
@@ -10,6 +12,7 @@ interface LinkRow {
     slug: string;
     url: string;
     product: { id: string; name: string; slug: string } | null;
+    campaign: { id: string; name: string } | null;
     utm_source: string | null;
     utm_medium: string | null;
     utm_campaign: string | null;
@@ -22,6 +25,18 @@ interface LinksData {
     can_create: boolean;
     attribution: { policy: string; window_days: number; coupon_overrides_click: boolean };
     links: LinkRow[];
+}
+
+interface CampaignRow {
+    id: string;
+    name: string;
+    description: string | null;
+    ends_at: string | null;
+    all_products: boolean;
+    products: { id: string; name: string; slug: string }[];
+    commission: { kind: string; rate_bp: number | null; fixed_minor: number | null; currency: string | null } | null;
+    coupons: { code: string }[];
+    my_links: number;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -37,11 +52,12 @@ function CopyButton({ text }: { text: string }) {
     );
 }
 
-const EMPTY = { name: '', slug: '', product_id: '', utm_source: '', utm_medium: '', utm_campaign: '' };
+const EMPTY = { name: '', slug: '', product_id: '', campaign_id: '', utm_source: '', utm_medium: '', utm_campaign: '' };
 
 export default function ReferralLinksPage() {
     const [data, setData] = useState<LinksData | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
+    const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
     const [form, setForm] = useState(EMPTY);
@@ -56,7 +72,18 @@ export default function ReferralLinksPage() {
     useEffect(() => {
         load();
         api<{ data: Product[] }>('/store/products').then((r) => setProducts(r.data)).catch(() => undefined);
+        api<{ data: CampaignRow[] }>('/affiliate/campaigns').then((r) => setCampaigns(r.data)).catch(() => undefined);
     }, []);
+
+    const newLink = (campaign?: CampaignRow) => {
+        reset();
+        setForm(
+            campaign
+                ? { ...EMPTY, campaign_id: campaign.id, product_id: campaign.products.length === 1 ? (campaign.products[0]?.id ?? '') : '', name: campaign.name }
+                : EMPTY,
+        );
+        setOpen(true);
+    };
 
     const create = async (e: FormEvent) => {
         e.preventDefault();
@@ -105,10 +132,39 @@ export default function ReferralLinksPage() {
                 </p>
             </Card>
 
+            {campaigns.length > 0 && (
+                <Card title="Campaigns you can promote">
+                    <p className="mb-3 text-sm text-muted">
+                        Orders count for a campaign only when they come through a link made for it, or through a campaign discount code.
+                    </p>
+                    <ul className="divide-y divide-line">
+                        {campaigns.map((c) => (
+                            <li key={c.id} className="space-y-1 py-3 text-sm">
+                                <p className="font-medium text-ink">{c.name}</p>
+                                {c.description && <p className="whitespace-pre-line text-muted">{c.description}</p>}
+                                <p className="text-muted">
+                                    {c.commission
+                                        ? `Commission ${rateLabel(c.commission.kind, c.commission.rate_bp, c.commission.fixed_minor, c.commission.currency ?? 'NPR')}`
+                                        : 'Your normal commission rate'}{' '}
+                                    on {c.all_products ? 'all products' : c.products.map((p) => p.name).join(', ')}
+                                    {c.ends_at ? ` · until ${formatDate(c.ends_at)}` : ''}
+                                    {c.coupons.length ? ` · your code ${c.coupons.map((k) => k.code).join(', ')}` : ''}
+                                </p>
+                                {data.can_create && (
+                                    <button type="button" onClick={() => newLink(c)} className="text-brand-600 hover:underline">
+                                        {c.my_links ? `Make another link (${c.my_links} so far)` : 'Make a link for this campaign'}
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </Card>
+            )}
+
             <Card title="Tracking links">
                 <p className="mb-3 text-sm text-muted">Create a link per product or campaign to see which posts bring orders.</p>
                 {data.can_create ? (
-                    <Button onClick={() => setOpen(true)}>New tracking link</Button>
+                    <Button onClick={() => newLink()}>New tracking link</Button>
                 ) : (
                     <Alert>Your membership is not active, so you cannot create new links.</Alert>
                 )}
@@ -132,6 +188,7 @@ export default function ReferralLinksPage() {
                                 </div>
                                 <p className="text-xs text-muted">
                                     Opens {l.product ? l.product.name : 'the store home page'}
+                                    {l.campaign ? ` · for ${l.campaign.name}` : ''}
                                     {l.utm_campaign ? ` · campaign ${l.utm_campaign}` : ''}
                                     {l.utm_source ? ` · source ${l.utm_source}` : ''}
                                 </p>
@@ -160,7 +217,17 @@ export default function ReferralLinksPage() {
                             </option>
                         ))}
                     </Select>
-                    <Field label="Campaign (optional)" value={form.utm_campaign} onChange={set('utm_campaign')} error={fieldErrors.utm_campaign} />
+                    {campaigns.length > 0 && (
+                        <Select label="For campaign (optional)" value={form.campaign_id} onChange={set('campaign_id')} error={fieldErrors.campaign_id}>
+                            <option value="">None</option>
+                            {campaigns.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name}
+                                </option>
+                            ))}
+                        </Select>
+                    )}
+                    <Field label="Campaign tag for your own tracking (optional)" value={form.utm_campaign} onChange={set('utm_campaign')} error={fieldErrors.utm_campaign} />
                     <Field label="Source (optional)" value={form.utm_source} onChange={set('utm_source')} error={fieldErrors.utm_source} hint="e.g. instagram, tiktok" />
                     <div className="flex justify-end gap-2 pt-2">
                         <Button type="button" variant="secondary" onClick={() => setOpen(false)}>

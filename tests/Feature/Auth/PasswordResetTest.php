@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Notifications\Auth\PasswordChanged;
 use App\Notifications\Auth\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,7 @@ class PasswordResetTest extends TestCase
 
     public function test_password_can_be_reset_with_valid_token_and_tokens_are_revoked(): void
     {
+        Notification::fake();
         $user = User::factory()->create();
         $user->createToken('old-device');
         $token = Password::createToken($user);
@@ -47,6 +49,7 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check('BrandNewPass123', $user->password));
         $this->assertSame(0, $user->tokens()->count());
         $this->assertDatabaseHas('audit_logs', ['action' => 'auth.password_reset', 'subject_id' => $user->public_id]);
+        Notification::assertSentTo($user, PasswordChanged::class);
     }
 
     public function test_invalid_token_is_rejected(): void

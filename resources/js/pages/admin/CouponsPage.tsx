@@ -21,6 +21,7 @@ interface Coupon {
     is_active: boolean;
     earns_commission: boolean;
     products: { id: string; name: string }[];
+    campaign: { id: string; name: string } | null;
     times_used: number;
 }
 
@@ -42,6 +43,7 @@ const EMPTY = {
     starts_at: '',
     ends_at: '',
     is_active: true,
+    campaign_id: '',
     product_ids: [] as string[],
 };
 
@@ -52,6 +54,7 @@ export default function CouponsPage() {
     const [coupons, setCoupons] = useState<Coupon[] | null>(null);
     const [affiliates, setAffiliates] = useState<AffiliateOption[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [campaigns, setCampaigns] = useState<{ id: string; name: string; state: string }[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [editing, setEditing] = useState<Coupon | 'new' | null>(null);
     const [form, setForm] = useState(EMPTY);
@@ -66,6 +69,7 @@ export default function CouponsPage() {
     useEffect(() => {
         load();
         api<{ data: Product[] }>('/admin/products').then((r) => setProducts(r.data)).catch(() => undefined);
+        api<{ data: { id: string; name: string; state: string }[] }>('/admin/campaigns').then((r) => setCampaigns(r.data)).catch(() => undefined);
         if (can('affiliates.view')) {
             api<{ data: AffiliateOption[] }>('/admin/affiliates?status=approved&per_page=100').then((r) => setAffiliates(r.data)).catch(() => undefined);
         }
@@ -89,6 +93,7 @@ export default function CouponsPage() {
                       starts_at: c.starts_at?.slice(0, 10) ?? '',
                       ends_at: c.ends_at?.slice(0, 10) ?? '',
                       is_active: c.is_active,
+                      campaign_id: c.campaign?.id ?? '',
                       product_ids: c.products.map((p) => p.id),
                   },
         );
@@ -111,6 +116,7 @@ export default function CouponsPage() {
             starts_at: form.starts_at || null,
             ends_at: form.ends_at ? `${form.ends_at}T23:59:59+05:45` : null,
             is_active: form.is_active,
+            campaign_id: form.campaign_id || null,
             product_ids: form.product_ids,
         };
         try {
@@ -154,6 +160,7 @@ export default function CouponsPage() {
                                         {c.usage_limit ? ` of ${c.usage_limit}` : ''} times
                                         {c.ends_at ? ` · ends ${formatDate(c.ends_at)}` : ''}
                                         {c.products.length ? ` · ${c.products.length} product(s)` : ''}
+                                        {c.campaign ? ` · campaign: ${c.campaign.name}` : ''}
                                     </p>
                                 </div>
                                 <button type="button" className="text-brand-600 hover:underline" onClick={() => open(c)}>
@@ -175,6 +182,21 @@ export default function CouponsPage() {
                                 {a.display_name} ({a.referral_code})
                             </option>
                         ))}
+                    </Select>
+                    <Select
+                        label="Campaign"
+                        value={form.campaign_id}
+                        onChange={set('campaign_id')}
+                        error={fieldErrors.campaign_id}
+                    >
+                        <option value="">None</option>
+                        {campaigns
+                            .filter((k) => k.state !== 'ended' || k.id === form.campaign_id)
+                            .map((k) => (
+                                <option key={k.id} value={k.id}>
+                                    {k.name}
+                                </option>
+                            ))}
                     </Select>
                     <div className="grid grid-cols-2 gap-3">
                         <Select label="Type" value={form.discount_type} onChange={set('discount_type')} error={fieldErrors.discount_type}>

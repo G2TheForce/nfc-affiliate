@@ -14,7 +14,7 @@ The app must be in maintenance mode (`php artisan down`) while migrations run on
 
 ## What each migration does
 
-None of the 1.0.0 migrations changes or deletes existing data. Each one creates tables, adds columns, or adds indexes. The one data step, in the commission migration, fills a new `public_id` column on existing order lines. Every migration has a working `down()`, and up, down, up was tested on MySQL 8 at each phase.
+None of the 1.0.0 or 1.1.0 migrations changes or deletes existing data. Each one creates tables, adds columns, or adds indexes. The one data step, in the commission migration, fills a new `public_id` column on existing order lines. Every migration has a `down()`. Up, down, up was tested on MySQL 8 for each 1.0.0 phase; the result for the 1.1.0 migrations is in the [Phase 10 report](phase-10-report.md).
 
 | Migration | Creates or changes |
 |---|---|
@@ -32,13 +32,26 @@ None of the 1.0.0 migrations changes or deletes existing data. Each one creates 
 | `2026_10_13_100000_create_payout_tables` | payout methods (encrypted), payouts, payout items; adds payout links to commissions and the ledger |
 | `2026_10_14_100000_create_payment_integration_tables` | `payment_attempts`, `webhook_events` (stored provider redirects), `order_disputes`; adds the guest access token hash and delivery columns to orders, and provider references to payments |
 | `2026_10_15_100000_add_reporting_indexes` | five indexes on orders, clicks, refunds and payouts for reports |
+| `2026_10_16_100000_create_fraud_flags_table` (1.1.0) | `fraud_flags` (signals for staff review) |
+| `2026_10_17_100000_create_campaign_tables` (1.1.0) | `campaigns`, `campaign_affiliate`, `campaign_product`; adds a nullable `campaign_id` to `affiliate_links`, `coupons`, `order_attributions` and `commission_rules` (existing rows stay null) |
+| `2026_10_18_100000_create_marketing_assets_table` (1.1.0) | `marketing_assets` (the files themselves go in `storage/app/private/marketing`) |
+
+### Upgrading from 1.0.0 to 1.1.0
+
+The three 1.1.0 migrations only create tables and add nullable columns. Existing orders, commissions and rules are not touched, and no data step runs. Back up, put the app in maintenance mode, run `php artisan migrate --force`, then `php artisan up`. Also:
+
+- add the new `.env` settings from `.env.example` if you want values other than the defaults (`AFFILIATE_MARKETING_MAX_UPLOAD_KB` and the `AFFILIATE_FRAUD_*` thresholds);
+- raise the PHP and nginx upload limits for 20 MB marketing files ([deployment.md](deployment.md));
+- add `storage/app/private/marketing` to the file backups ([backup-and-restore.md](backup-and-restore.md)).
+
+Rolling back `2026_10_17_100000_create_campaign_tables` drops the `campaign_id` columns, so orders lose the record of which campaign they came through.
 
 The full table reference is [database-schema.md](database-schema.md).
 
 ## Rolling back
 
 - `php artisan migrate:rollback --step=1` undoes the most recent migration.
-- Rolling back a migration that **created** tables drops those tables and their data. Rolling back one that **added** columns drops those columns. On a live system, prefer restoring the pre-upgrade backup into a new database ([backup-and-restore.md](backup-and-restore.md)), or leave the schema in place when the older code can run on it. Every 1.0.0 migration is additive, so older code can.
+- Rolling back a migration that **created** tables drops those tables and their data. Rolling back one that **added** columns drops those columns. On a live system, prefer restoring the pre-upgrade backup into a new database ([backup-and-restore.md](backup-and-restore.md)), or leave the schema in place when the older code can run on it. Every 1.0.0 and 1.1.0 migration is additive, so older code can.
 - Never run `migrate:fresh`, `migrate:reset` or `db:wipe` on production: they delete everything.
 
 ## Writing new migrations

@@ -32,6 +32,7 @@ class CouponResource extends JsonResource
             'ends_at' => $this->ends_at?->toIso8601String(),
             'is_active' => $this->is_active,
             'earns_commission' => $this->earns_commission,
+            'campaign' => $this->campaign ? ['id' => $this->campaign->public_id, 'name' => $this->campaign->name] : null,
             'products' => $this->products->map(fn ($p) => ['id' => $p->public_id, 'name' => $p->name])->values(),
             'times_used' => (int) ($this->active_redemptions_count ?? 0),
             'created_at' => $this->created_at?->toIso8601String(),

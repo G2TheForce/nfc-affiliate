@@ -7,6 +7,8 @@ use App\Domain\Referrals\ReferralEventRecorder;
 use App\Enums\AttributionStatus;
 use App\Enums\OrderStatus;
 use App\Enums\ReferralEventType;
+use App\Models\AffiliateProfile;
+use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\CouponRedemption;
 use App\Models\Order;
@@ -125,6 +127,7 @@ class CheckoutService
                         'policy' => config('affiliate.attribution.policy'),
                         'window_days' => (int) config('affiliate.attribution.window_days'),
                         'clicked_at' => $decision->click?->created_at,
+                        'campaign_id' => $this->campaignFor($decision->affiliate, $decision->coupon, $decision->click, $coupon)?->id,
                     ])->save();
 
                     $this->events->record(ReferralEventType::OrderPlaced, $decision->affiliate->id, $order, $subtotal - $discount['discount']);
@@ -141,6 +144,24 @@ class CheckoutService
         }
 
         return ['order' => $order, 'replayed' => false];
+    }
+
+    /**
+     * The campaign the order came through: the attributing coupon's, else the
+     * tracking link's, else a store-wide coupon's. It counts only while the
+     * campaign runs and the affiliate takes part.
+     */
+    private function campaignFor(AffiliateProfile $affiliate, ?Coupon $attributingCoupon, ?ReferralClick $click, ?Coupon $orderCoupon): ?Campaign
+    {
+        $storeCoupon = $orderCoupon && $orderCoupon->affiliate_profile_id === null ? $orderCoupon : null;
+
+        foreach ([$attributingCoupon?->campaign, $click?->link?->campaign, $storeCoupon?->campaign] as $campaign) {
+            if ($campaign && $campaign->isRunningAt(now()) && $campaign->includes($affiliate)) {
+                return $campaign;
+            }
+        }
+
+        return null;
     }
 
     private function replay(string $key, string $requestHash): ?Order

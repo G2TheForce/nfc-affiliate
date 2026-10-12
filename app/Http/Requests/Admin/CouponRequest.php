@@ -36,6 +36,7 @@ class CouponRequest extends FormRequest
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'is_active' => ['sometimes', 'boolean'],
             'earns_commission' => ['sometimes', 'boolean'],
+            'campaign_id' => ['nullable', 'string', 'ulid', Rule::exists('campaigns', 'public_id')],
             'product_ids' => ['sometimes', 'array', 'max:200'],
             'product_ids.*' => ['string', 'ulid', Rule::exists('products', 'public_id')],
         ];

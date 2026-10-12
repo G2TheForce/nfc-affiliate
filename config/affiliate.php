@@ -61,6 +61,32 @@ return [
         'require_separate_payer' => (bool) env('AFFILIATE_PAYOUT_REQUIRE_SEPARATE_PAYER', false),
     ],
 
+    // Marketing materials staff upload for affiliates. Keep the web server's
+    // and PHP's upload limits (docker/nginx.conf, docker/php.ini) above this.
+    'marketing' => [
+        'max_upload_kb' => (int) env('AFFILIATE_MARKETING_MAX_UPLOAD_KB', 20480),
+    ],
+
+    // Fraud signals (spec section 15). Each crossing raises a flag for staff
+    // review; nothing is held or blocked automatically.
+    'fraud' => [
+        // Orders per unique click over the last 30 days, in percent.
+        'conversion_max_percent' => (int) env('AFFILIATE_FRAUD_CONVERSION_MAX_PERCENT', 30),
+        'conversion_min_orders' => (int) env('AFFILIATE_FRAUD_CONVERSION_MIN_ORDERS', 5),
+        // Unique clicks in 30 days with no paid order at all.
+        'clicks_without_orders' => (int) env('AFFILIATE_FRAUD_CLICKS_WITHOUT_ORDERS', 1000),
+        // Share of paid referred orders refunded over the last 90 days, in percent.
+        'refund_rate_max_percent' => (int) env('AFFILIATE_FRAUD_REFUND_RATE_MAX_PERCENT', 30),
+        'refund_rate_min_orders' => (int) env('AFFILIATE_FRAUD_REFUND_RATE_MIN_ORDERS', 5),
+        // Commission in the last 7 days against the weekly average of the 8 weeks before.
+        'earnings_spike_multiple' => (int) env('AFFILIATE_FRAUD_EARNINGS_SPIKE_MULTIPLE', 5),
+        'earnings_spike_min_minor' => (int) env('AFFILIATE_FRAUD_EARNINGS_SPIKE_MIN_MINOR', 1000000), // NPR 10,000
+        // A payout request at or above this amount.
+        'large_payout_minor' => (int) env('AFFILIATE_FRAUD_LARGE_PAYOUT_MINOR', 5000000), // NPR 50,000
+        // A payout request within this many days of replacing payout details.
+        'detail_change_days' => (int) env('AFFILIATE_FRAUD_DETAIL_CHANGE_DAYS', 7),
+    ],
+
     'privacy' => [
         // Referral clicks and audit IPs are stored only as keyed hashes.
         'click_retention_days' => (int) env('AFFILIATE_CLICK_RETENTION_DAYS', 395),

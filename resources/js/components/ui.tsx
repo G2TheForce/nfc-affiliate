@@ -197,6 +197,11 @@ const STATUS_STYLES: Record<string, string> = {
     processing: 'bg-brand-50 text-brand-700',
     shipped: 'bg-brand-50 text-brand-700',
     delivered: 'bg-success/10 text-success',
+    dismissed: 'bg-line text-muted',
+    confirmed: 'bg-danger/10 text-danger',
+    running: 'bg-success/10 text-success',
+    upcoming: 'bg-brand-50 text-brand-700',
+    ended: 'bg-line text-muted',
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {

@@ -4,11 +4,14 @@ use App\Enums\Permission;
 use App\Http\Controllers\Api\V1\Admin\AdjustmentController;
 use App\Http\Controllers\Api\V1\Admin\AffiliateController;
 use App\Http\Controllers\Api\V1\Admin\AuditLogController;
+use App\Http\Controllers\Api\V1\Admin\CampaignController;
 use App\Http\Controllers\Api\V1\Admin\CommissionController;
 use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
 use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\FraudFlagController;
+use App\Http\Controllers\Api\V1\Admin\MarketingAssetController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\OrderOperationsController;
 use App\Http\Controllers\Api\V1\Admin\PaymentAttemptController;
@@ -20,8 +23,10 @@ use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralR
 use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
+use App\Http\Controllers\Api\V1\Affiliate\CampaignController as AffiliateCampaignController;
 use App\Http\Controllers\Api\V1\Affiliate\DashboardController;
 use App\Http\Controllers\Api\V1\Affiliate\EarningsController;
+use App\Http\Controllers\Api\V1\Affiliate\MarketingAssetController as AffiliateMarketingAssetController;
 use App\Http\Controllers\Api\V1\Affiliate\PayoutController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralLinkController;
 use App\Http\Controllers\Api\V1\Affiliate\ReferralReportController;
@@ -30,6 +35,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Store\AffiliateProgrammeController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
 use App\Http\Controllers\Api\V1\Store\CheckoutController;
 use App\Http\Controllers\Api\V1\Store\CustomerOrderController;
@@ -58,6 +64,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     // token when present; guests can check out too.
     Route::prefix('store')->name('store.')->middleware('throttle:store')->group(function () {
         Route::get('products', [CatalogController::class, 'products'])->name('products.index');
+        Route::get('affiliate-programme', [AffiliateProgrammeController::class, 'show'])->name('affiliate-programme');
         Route::get('products/{slug}', [CatalogController::class, 'product'])
             ->where('slug', '[a-z0-9-]+')->name('products.show');
         Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
@@ -104,6 +111,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
             Route::middleware('permission:'.Permission::AffiliatePortal->value)->group(function () {
                 Route::get('links', [ReferralLinkController::class, 'index'])->name('links.index');
+                Route::get('campaigns', [AffiliateCampaignController::class, 'index'])->name('campaigns.index');
+                Route::get('marketing-assets', [AffiliateMarketingAssetController::class, 'index'])->name('marketing-assets.index');
+                Route::get('marketing-assets/{asset}/file', [AffiliateMarketingAssetController::class, 'file'])
+                    ->whereUlid('asset')->middleware('throttle:120,1')->name('marketing-assets.file');
                 Route::post('links', [ReferralLinkController::class, 'store'])->middleware('throttle:30,1')->name('links.store');
                 Route::patch('links/{link}', [ReferralLinkController::class, 'update'])->whereUlid('link')->name('links.update');
                 Route::get('referrals/summary', [ReferralReportController::class, 'summary'])->name('referrals.summary');
@@ -166,6 +177,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('coupons', [CouponController::class, 'store'])->middleware($campaigns)->name('coupons.store');
                 Route::patch('coupons/{coupon}', [CouponController::class, 'update'])->middleware($campaigns)->name('coupons.update');
 
+                Route::get('campaigns', [CampaignController::class, 'index'])
+                    ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.index');
+                Route::post('campaigns', [CampaignController::class, 'store'])->middleware($campaigns)->name('campaigns.store');
+                Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->whereUlid('campaign')
+                    ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.show');
+                Route::patch('campaigns/{campaign}', [CampaignController::class, 'update'])->whereUlid('campaign')->middleware($campaigns)->name('campaigns.update');
+
+                $assets = 'permission:'.Permission::MarketingAssetsManage->value;
+                Route::get('marketing-assets', [MarketingAssetController::class, 'index'])->middleware($assets)->name('marketing-assets.index');
+                Route::post('marketing-assets', [MarketingAssetController::class, 'store'])->middleware([$assets, 'throttle:30,1'])->name('marketing-assets.store');
+                Route::patch('marketing-assets/{asset}', [MarketingAssetController::class, 'update'])->middleware($assets)->name('marketing-assets.update');
+                Route::delete('marketing-assets/{asset}', [MarketingAssetController::class, 'destroy'])->middleware($assets)->name('marketing-assets.destroy');
+                Route::get('marketing-assets/{asset}/file', [MarketingAssetController::class, 'file'])->middleware($assets)->name('marketing-assets.file');
+
                 Route::prefix('orders')->name('orders.')->group(function () {
                     Route::get('/', [OrderController::class, 'index'])->middleware('permission:'.Permission::OrdersView->value)->name('index');
                     Route::get('{order}', [OrderController::class, 'show'])->middleware('permission:'.Permission::OrdersView->value)->name('show');
@@ -209,6 +234,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::post('{commission}/void', [CommissionController::class, 'void'])->middleware($fraud)->name('void');
                     Route::post('{commission}/release', [CommissionController::class, 'release'])->middleware($approve)->name('release');
                 });
+
+                Route::get('fraud-flags', [FraudFlagController::class, 'index'])->middleware($fraud)->name('fraud-flags.index');
+                Route::post('fraud-flags/{flag}/review', [FraudFlagController::class, 'review'])->whereUlid('flag')->middleware($fraud)->name('fraud-flags.review');
 
                 Route::get('adjustments', [AdjustmentController::class, 'index'])->middleware($commissionsView)->name('adjustments.index');
                 Route::post('adjustments', [AdjustmentController::class, 'store'])->middleware('permission:'.Permission::CommissionsAdjust->value)->name('adjustments.store');

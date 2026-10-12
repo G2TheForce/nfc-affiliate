@@ -28,3 +28,10 @@ export const formatMoney = (minor: number | null | undefined, currency = 'NPR') 
 
 /** Major-unit text typed by staff (e.g. "1500.50") to minor units. */
 export const toMinor = (major: string): number => Math.round(Number(major) * 100);
+
+/** File size for people, e.g. 2048 → "2 KB". */
+export const formatBytes = (bytes: number | null | undefined) => {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toLocaleString('en-IN', { maximumFractionDigits: 1 })} MB`;
+};

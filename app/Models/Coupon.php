@@ -18,10 +18,10 @@ class Coupon extends Model
 
     protected $fillable = [
         'code', 'affiliate_profile_id', 'discount_type', 'discount_value', 'min_order_minor', 'max_discount_minor',
-        'usage_limit', 'per_customer_limit', 'starts_at', 'ends_at', 'is_active', 'earns_commission',
+        'usage_limit', 'per_customer_limit', 'starts_at', 'ends_at', 'is_active', 'earns_commission', 'campaign_id',
     ];
 
-    protected $hidden = ['id', 'affiliate_profile_id', 'created_by'];
+    protected $hidden = ['id', 'affiliate_profile_id', 'created_by', 'campaign_id'];
 
     protected static function booted(): void
     {
@@ -67,5 +67,10 @@ class Coupon extends Model
     public function redemptions(): HasMany
     {
         return $this->hasMany(CouponRedemption::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 }

@@ -43,7 +43,7 @@ Every fix has a test that fails without it.
 | SQL injection, XSS | Query builder with bindings only; no raw HTML rendering; escaped mail templates |
 | Mass assignment | Money and state models use `$guarded = ['*']` with explicit `forceFill`; requests use validated data only |
 | Open redirects | Referral destinations come from an allow-list; payment returns go to a relative path |
-| File uploads and downloads | No upload endpoints yet. Exports need a permission, are streamed and audited, and are protected against formula injection. |
+| File uploads and downloads | No upload endpoints at the time of this review. Exports need a permission, are streamed and audited, and are protected against formula injection. Release 1.1.0 (after this review) adds marketing uploads for staff with `marketing_assets.manage`: the type is detected from the content, SVG is refused, files are size-limited and stored on the private disk under generated names, and they are served only through the API with `nosniff` and a sandbox CSP ([Phase 10 report](phase-10-report.md)). |
 | Security headers, HTTPS | nosniff, frame denial, Referrer-Policy, Permissions-Policy and COOP everywhere. HSTS and a strict CSP in production; HTTPS forced in production. |
 | Secret management, safe errors | `.env` only; production errors are generic JSON with no traces; logs carry IDs, not secrets or personal data |
 | Payment provider signatures, replay, idempotency | [ADR 0011](adr/0011-payments-disputes-fulfilment.md): signature check, status API as the only proof, stored redirects, unique keys and row locks |

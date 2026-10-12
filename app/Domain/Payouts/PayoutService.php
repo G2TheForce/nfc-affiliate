@@ -4,6 +4,7 @@ namespace App\Domain\Payouts;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Commissions\CommissionLedger;
+use App\Domain\Fraud\FraudDetector;
 use App\Enums\CommissionStatus;
 use App\Enums\LedgerBucket;
 use App\Enums\LedgerEntryType;
@@ -36,6 +37,7 @@ class PayoutService
     public function __construct(
         private readonly CommissionLedger $ledger,
         private readonly AuditLogger $audit,
+        private readonly FraudDetector $fraud,
     ) {}
 
     public function request(AffiliateProfile $affiliate, User $actor): Payout
@@ -101,6 +103,8 @@ class PayoutService
                 'commissions' => count($items),
                 'destination' => $method->masked,
             ], $actor);
+
+            $this->fraud->checkPayoutRequest($payout, $method);
 
             $locked->user->notify((new PayoutStatusChanged($payout))->afterCommit());
             $reviewers = User::permission(Permission::PayoutsReview->value)->where('status', 'active')->get();
