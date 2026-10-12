@@ -73,7 +73,7 @@ return new class extends Migration
 
         // A payment is recorded only from verified evidence: a staff member
         // confirming money received with its reference (manual), or a
-        // provider webhook whose signature was checked (Phase 7).
+        // provider status check that confirmed it (Phase 7; redirects are never proof).
         Schema::create('order_payments', function (Blueprint $table) {
             $table->id();
             $table->ulid('public_id')->unique();

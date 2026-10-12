@@ -21,6 +21,22 @@ class ReviewWorkflowTest extends TestCase
         return AffiliateProfile::factory()->create();
     }
 
+    public function test_approval_message_reaches_the_member_and_history(): void
+    {
+        Notification::fake();
+        $manager = $this->userWithRole(Role::AffiliateManager);
+        $profile = $this->pendingProfile();
+
+        $response = $this->actingAs($manager)->postJson("/api/v1/admin/affiliates/{$profile->public_id}/approve", [
+            'reason' => 'Welcome! Start with your Facebook group.',
+        ])->assertOk();
+
+        $this->assertSame('Welcome! Start with your Facebook group.', $response->json('data.history.0.reason'));
+        Notification::assertSentTo($profile->user, AffiliateStatusChanged::class, function ($n) use ($profile) {
+            return str_contains((string) $n->toMail($profile->user)->render(), 'Message from the team: Welcome! Start with your Facebook group.');
+        });
+    }
+
     public function test_manager_approves_application_which_assigns_code_slug_and_role(): void
     {
         Notification::fake();

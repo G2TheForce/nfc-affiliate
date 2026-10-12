@@ -1,6 +1,6 @@
 # Production configuration
 
-Settings to review before going live. Full deployment steps come with Phase 9.
+Settings to review before going live. The full installation steps are in [deployment.md](deployment.md).
 
 ## `.env`
 

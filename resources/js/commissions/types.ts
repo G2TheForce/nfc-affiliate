@@ -59,7 +59,7 @@ export const BUCKET_LABELS: Record<string, string> = {
     pending: 'Pending',
     approved: 'Approved',
     available: 'Available',
-    reserved: 'Reserved',
+    reserved: 'In payout',
     paid: 'Paid',
     reversed: 'Reversed',
 };

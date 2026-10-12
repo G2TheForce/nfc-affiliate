@@ -56,7 +56,7 @@ return new class extends Migration
             $table->foreignId('payment_attempt_id')->nullable()->constrained()->nullOnDelete();
             $table->boolean('signature_valid')->nullable();
             $table->json('payload');
-            // verified_paid | not_paid | duplicate | rejected | unknown_attempt | error
+            // verified_paid | not_paid | rejected | unknown_attempt
             $table->string('outcome', 20)->nullable();
             $table->string('error', 255)->nullable();
             $table->unsignedInteger('times_received')->default(1);

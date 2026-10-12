@@ -1,0 +1,49 @@
+# Database migrations
+
+## Running them
+
+```bash
+php artisan migrate:status                         # what has run, what is pending
+php artisan migrate --force                        # production: runs pending migrations
+php artisan migrate --force --seed                 # first install only: also creates roles and permissions
+```
+
+Run migrations with the database user that may change the schema, not the app user (see [deployment.md](deployment.md#3-database)). Take a backup first (`scripts/backup-db.sh`). `--seed` runs `DatabaseSeeder`, which only creates roles and permissions. It never creates users or sample data; `DevelopmentSeeder` refuses to run in production.
+
+The app must be in maintenance mode (`php artisan down`) while migrations run on an existing install.
+
+## What each migration does
+
+None of the 1.0.0 migrations changes or deletes existing data. Each one creates tables, adds columns, or adds indexes. The one data step, in the commission migration, fills a new `public_id` column on existing order lines. Every migration has a working `down()`, and up, down, up was tested on MySQL 8 at each phase.
+
+| Migration | Creates or changes |
+|---|---|
+| `0001_01_01_000000_create_users_table` | `users`, `password_reset_tokens`, `sessions` |
+| `0001_01_01_000001_create_cache_table` | `cache`, `cache_locks` (also used for scheduler locks and rate limits) |
+| `0001_01_01_000002_create_jobs_table` | `jobs`, `job_batches`, `failed_jobs` |
+| `2026_10_09_153346_create_personal_access_tokens_table` | `personal_access_tokens` (Sanctum API tokens) |
+| `2026_10_09_153347_create_permission_tables` | roles, permissions and their links (spatie/laravel-permission) |
+| `2026_10_09_160000_create_audit_logs_table` | `audit_logs` (append-only) |
+| `2026_10_10_071408_create_notifications_table` | `notifications` (in-app notices) |
+| `2026_10_10_100000_create_affiliate_tables` | affiliate profiles, status history, terms versions and acceptances, staff notes |
+| `2026_10_11_100000_create_store_tables` | product categories, products, coupons, orders, order lines, coupon redemptions |
+| `2026_10_11_100100_create_referral_tables` | `affiliate_links`, `referral_clicks`, `order_attributions`, `referral_events` |
+| `2026_10_12_100000_create_commission_tables` | commission plans and rules, payments, refunds, commissions, adjustments, the commission ledger, reconciliation runs; adds paid and refunded columns to orders and lines, a plan to affiliate profiles, and `public_id` to order lines (filled for existing rows) |
+| `2026_10_13_100000_create_payout_tables` | payout methods (encrypted), payouts, payout items; adds payout links to commissions and the ledger |
+| `2026_10_14_100000_create_payment_integration_tables` | `payment_attempts`, `webhook_events` (stored provider redirects), `order_disputes`; adds the guest access token hash and delivery columns to orders, and provider references to payments |
+| `2026_10_15_100000_add_reporting_indexes` | five indexes on orders, clicks, refunds and payouts for reports |
+
+The full table reference is [database-schema.md](database-schema.md).
+
+## Rolling back
+
+- `php artisan migrate:rollback --step=1` undoes the most recent migration.
+- Rolling back a migration that **created** tables drops those tables and their data. Rolling back one that **added** columns drops those columns. On a live system, prefer restoring the pre-upgrade backup into a new database ([backup-and-restore.md](backup-and-restore.md)), or leave the schema in place when the older code can run on it. Every 1.0.0 migration is additive, so older code can.
+- Never run `migrate:fresh`, `migrate:reset` or `db:wipe` on production: they delete everything.
+
+## Writing new migrations
+
+- Make them additive where possible: add a column as nullable or with a default, backfill in batches, and tighten it in a later release.
+- Keep money in integer minor units (`bigInteger`, paisa) with a currency code; see [ADR 0001](adr/0001-money-as-integer-minor-units.md).
+- Never update or delete rows in `audit_logs`, `commission_ledger_entries`, `order_payments`, `refunds` or `payout_items`; they are append-only or immutable by design.
+- Test up, down and up again on MySQL 8 before merging, and run `affiliate:reconcile-commissions` afterwards.

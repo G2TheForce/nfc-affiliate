@@ -142,7 +142,7 @@ Commission is worked out on what the customer paid for the product after any dis
 | **Pending** | The order is paid. The commission waits for **14 days** in case of a refund. Each commission shows "available from" a date. |
 | **Approved** | The 14 days have passed with no refund or hold. Normally this lasts only moments before the next step. |
 | **Available** | The money is yours to request. You get an email: "Commission added to your available balance". |
-| **Reserved** (shown as "In payout" or "In progress") | It is part of a payout request that has not been sent yet. |
+| **In payout** | It is part of a payout request that has not been sent yet. |
 | **Paid** | We have sent it to you. |
 | **Reversed** | Taken back because the sale was refunded, or cancelled by our team. |
 
@@ -192,7 +192,7 @@ Pending, approved and held commission does not count towards the minimum.
 
 A request always covers your **whole** available balance. You cannot choose a smaller amount. For example, if you have NPR 2,450 available, the request is for NPR 2,450.
 
-That amount then moves from **Available** to **In progress** (reserved). Reserved means it is set aside for this payout and cannot be used for anything else.
+That amount then moves from **Available** to **In payout**. That means it is set aside for this payout and cannot be used for anything else.
 
 ### Payout statuses
 
@@ -330,19 +330,6 @@ Not at the moment. Tax treatment is to be confirmed by the business.
 
 ---
 
-## Notes for developers
+## Known limitations
 
-Discrepancies noticed while writing this guide (code checked at the time of writing):
-
-1. `AffiliatePage.tsx` `ReferralCard` still says "Referral links, click tracking and earnings are added in the next release." These features exist; the text is stale.
-2. The reserved bucket has three labels: "In payout" (dashboard, `DEFINITION_LABELS`), "In progress" (Payouts page) and "Reserved" (`BUCKET_LABELS`, Statement tab).
-3. Earnings page **Pending** stat adds `pending + approved`; the dashboard shows them separately.
-4. Nav label **Referral stats** opens a page titled **Referral performance**. Its Conversion hint says "Orders per unique click" but the value is per 100 unique clicks (the dashboard hint is correct).
-5. `address_line` is validated and saved by the backend but has no input in `AffiliateDetailsFields`.
-6. Closing membership (or staff deactivation) removes the affiliate role, so the member loses Earnings/Payouts access, cannot request a payout, and `PayoutService::assertAffiliateActive` blocks approving/paying an open payout. No path exists for paying out a closed member's remaining balance, and the close warning does not mention it.
-7. New terms are prompted but not enforced for earning (ADR 0006 "still to decide").
-8. `PayoutStatusChanged` has wording for Cancelled, but a member cancelling sends no notification (`notify: false`). This matches ADR 0009.
-9. `BotDetector` matches `whatsapp|viber|telegram|…` in the user agent. If any of these apps' in-app browsers include their name, real clicks from them would be dropped silently. Worth checking with real devices.
-10. Disputes hold only pending/approved commissions; available ones on a disputed order are not held and are clawed back only if the dispute is lost (consistent with `DisputeService`, worth stating in ADR 0011 if not already).
-11. Production starts with no commission rules (ADR 0008), so no default rate is quoted here; affiliates are pointed to **My rates**.
-12. TDS: nothing is withheld; open question in ADR 0009.
+Gaps found while writing this guide are listed in [known-limitations.md](known-limitations.md).

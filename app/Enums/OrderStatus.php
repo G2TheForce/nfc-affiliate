@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * Paid and refunded are set only from verified payment or refund records
- * (manual confirmation now, provider webhooks in Phase 7), never from a browser redirect.
+ * (staff confirmation or a provider status check), never from a browser redirect.
  */
 enum OrderStatus: string
 {

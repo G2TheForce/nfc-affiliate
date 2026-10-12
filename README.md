@@ -2,24 +2,20 @@
 
 Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmandu): affiliate onboarding, referral tracking, commission accounting, payouts, dashboards and reports.
 
-**Status: Phase 5 (Payouts) complete.** Built and tested so far:
+**Status: release 1.0.0 candidate (Phases 1 to 9 complete).** See the [release-readiness assessment](docs/release-readiness.md) and [known limitations](docs/known-limitations.md) before going live.
 
-- Authentication, roles and audit logging.
-- Affiliate onboarding: applications, staff review, suspension, terms versions and notifications.
-- A built-in store: catalog, affiliate coupons and checkout.
-- Referral links, click tracking, last-click attribution and referral reports.
-- Commission accounting:
-  - staff-confirmed payments and refunds
-  - commission rules with precedence, and commission calculation
-  - an append-only ledger with balances, holds and adjustments
-  - nightly reconciliation
-- Payouts:
-  - encrypted payout details (bank, eSewa, Khalti)
-  - affiliate payout requests that reserve the available balance
-  - finance approval, and manual transfer confirmation with a unique reference
-  - rejected and failed payouts return the funds
+What it does:
 
-Payment gateways and payout providers are not connected yet (Phase 7); payments and payouts are confirmed by staff. See [docs/phase-5-report.md](docs/phase-5-report.md), [docs/phase-4-report.md](docs/phase-4-report.md), [docs/phase-3-report.md](docs/phase-3-report.md), [docs/phase-2-report.md](docs/phase-2-report.md) and [docs/phase-1-report.md](docs/phase-1-report.md).
+- Accounts, four staff roles, affiliates and customers, with an append-only audit log.
+- Affiliate applications, staff review, suspension and versioned terms.
+- A built-in store: catalogue, coupons, checkout, delivery steps and disputes.
+- Referral links and codes, click tracking with bot filtering, and last-click attribution.
+- eSewa and Khalti payments, confirmed only by the provider's status API, plus staff-confirmed manual payments and refunds.
+- Commission rules and plans, an append-only ledger, a holding period, holds, two-person adjustments and nightly reconciliation.
+- Encrypted payout details, payout requests, finance approval and manual transfers with a unique reference.
+- Affiliate, staff and finance dashboards, and reports with CSV and Excel export.
+
+Each phase report in `docs/` lists what was built and the test results; [CHANGELOG.md](CHANGELOG.md) links them all.
 
 ## Stack
 
@@ -64,6 +60,8 @@ Online payments are off until switched on in `.env`:
 | `php artisan test` | Backend test suite (SQLite in memory by default) |
 | `npm run typecheck` / `npm run lint` / `npm run build` | Frontend checks |
 | `php artisan affiliate:create-admin` | Create the first Super Administrator (no default password) |
+| `php artisan affiliate:create-staff --role=...` | Create an Affiliate Manager, Finance Manager or Customer Support account |
+| `php artisan affiliate:set-user-status <email> disabled --reason=...` | Disable (or re-enable with `active`) an account and sign it out everywhere |
 | `php artisan affiliate:permissions-matrix` | Regenerate [docs/permissions-matrix.md](docs/permissions-matrix.md) |
 | `php artisan db:seed --class=DevelopmentSeeder` | Local only: one `@dev.invalid` user per role, sample affiliates, products, a coupon and commission rules |
 | `php artisan affiliate:prune-referral-data` | Apply click retention (also scheduled daily) |
@@ -81,4 +79,8 @@ Online payments are off until switched on in `.env`:
 - [Permissions matrix](docs/permissions-matrix.md)
 - [API (OpenAPI 3.1)](docs/api/openapi.yaml)
 - [Local setup on Windows](docs/local-setup-windows.md)
-- [Security review](docs/security-review.md), [production configuration](docs/production-config.md), [backup and restore](docs/backup-and-restore.md), [load and concurrency tests](docs/load-and-concurrency.md)
+- [API guide](docs/api-guide.md) and [database schema with ER diagram](docs/database-schema.md)
+- Guides for people: [administrator guide](docs/admin-guide.md), [affiliate guide](docs/affiliate-guide.md)
+- Running it: [deployment](docs/deployment.md) (Linux and Docker Compose), [migrations](docs/migrations.md), [operations runbook](docs/operations.md), [production configuration](docs/production-config.md), [backup and restore](docs/backup-and-restore.md)
+- [Security review](docs/security-review.md), [load and concurrency tests](docs/load-and-concurrency.md)
+- Release: [feature checklist](docs/feature-checklist.md), [requirements and assumptions](docs/requirements-and-assumptions.md), [known limitations](docs/known-limitations.md), [release readiness](docs/release-readiness.md), [Phase 9 report](docs/phase-9-report.md)

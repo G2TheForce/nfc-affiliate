@@ -53,6 +53,8 @@ export default function OrdersPage() {
                     <option value="">All statuses</option>
                     <option value="pending_payment">Awaiting payment</option>
                     <option value="paid">Paid</option>
+                    <option value="partially_refunded">Partly refunded</option>
+                    <option value="refunded">Refunded</option>
                     <option value="cancelled">Cancelled</option>
                 </select>
                 {can('attribution.view') && (
