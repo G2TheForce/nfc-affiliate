@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\User;
+use App\Notifications\Auth\PasswordChanged;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Password;
@@ -50,6 +51,7 @@ class PasswordResetController extends Controller
 
                 event(new PasswordReset($user));
                 $this->audit->log('auth.password_reset', $user, [], $user);
+                $user->notify(new PasswordChanged);
             },
         );
 

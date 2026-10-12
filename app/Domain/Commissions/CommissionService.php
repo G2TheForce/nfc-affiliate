@@ -8,11 +8,15 @@ use App\Enums\CommissionRuleKind;
 use App\Enums\CommissionStatus;
 use App\Enums\LedgerBucket;
 use App\Enums\LedgerEntryType;
+use App\Models\AffiliateProfile;
 use App\Models\Commission;
 use App\Models\Order;
 use App\Models\Refund;
 use App\Models\RefundItem;
 use App\Models\User;
+use App\Notifications\Affiliate\CommissionReversed;
+use App\Notifications\Affiliate\ReferredOrderPaid;
+use App\Support\Privacy\Mask;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -154,6 +158,13 @@ class CommissionService
             'held' => $hold,
         ], $actor);
 
+        // A replay that creates nothing new on an order already handled stays quiet.
+        if ($created->isNotEmpty() || $skipped !== []) {
+            $affiliate->user?->notify((new ReferredOrderPaid(
+                Mask::orderNumber($order->order_number), (int) $created->sum('amount_minor'), $order->currency, $eligibleAt, $hold,
+            ))->afterCommit());
+        }
+
         return $created;
     }
 
@@ -170,6 +181,7 @@ class CommissionService
     {
         $this->assertInTransaction();
         $total = 0;
+        $byAffiliate = [];
 
         foreach ($refund->items()->get() as $refundItem) {
             $refundedForLine = (int) RefundItem::query()->where('order_item_id', $refundItem->order_item_id)->sum('amount_minor');
@@ -206,6 +218,17 @@ class CommissionService
                 }
                 $commission->save();
                 $total += $delta;
+                $byAffiliate[$commission->affiliate_profile_id][$commission->currency] = ($byAffiliate[$commission->affiliate_profile_id][$commission->currency] ?? 0) + $delta;
+            }
+        }
+
+        if ($byAffiliate !== []) {
+            $reference = Mask::orderNumber($refund->order()->value('order_number'));
+            $affiliates = AffiliateProfile::query()->with('user')->whereKey(array_keys($byAffiliate))->get();
+            foreach ($affiliates as $affiliate) {
+                foreach ($byAffiliate[$affiliate->id] as $currency => $amount) {
+                    $affiliate->user?->notify((new CommissionReversed($reference, $amount, $currency, CommissionReversed::CAUSE_REFUND))->afterCommit());
+                }
             }
         }
 
