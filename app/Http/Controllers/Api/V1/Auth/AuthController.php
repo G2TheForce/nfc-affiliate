@@ -45,7 +45,10 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->validated('email'))->first();
 
-        if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
+        // Unknown emails still pay for one hash check, so response time does
+        // not reveal which emails have accounts.
+        $hash = $user?->password ?? sprintf('$2y$%02d$%s', config('hashing.bcrypt.rounds', 12), str_repeat('a', 53));
+        if (! Hash::check($request->validated('password'), $hash) || ! $user) {
             $this->audit->log('auth.login_failed', $user, ['reason' => 'invalid_credentials']);
 
             throw ValidationException::withMessages([

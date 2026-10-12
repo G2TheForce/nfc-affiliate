@@ -54,11 +54,13 @@ class AppServiceProvider extends ServiceProvider
     private function configureRateLimiting(): void
     {
         RateLimiter::for('login', function (Request $request) {
-            $email = mb_strtolower((string) $request->input('email'));
+            $email = is_string($request->input('email')) ? mb_strtolower($request->input('email')) : '';
 
             return [
                 Limit::perMinute((int) config('affiliate.auth.login_attempts_per_minute'))->by($email.'|'.$request->ip()),
                 Limit::perMinute(30)->by('ip:'.$request->ip()),
+                // Slows password guessing against one account spread over many IPs.
+                Limit::perHour(30)->by('account:'.$email),
             ];
         });
 

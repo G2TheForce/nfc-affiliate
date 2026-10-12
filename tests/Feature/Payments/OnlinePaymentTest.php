@@ -403,4 +403,28 @@ class OnlinePaymentTest extends TestCase
             ->assertForbidden();
         $this->assertSame(0, PaymentAttempt::query()->count());
     }
+
+    public function test_a_complete_status_without_a_readable_amount_goes_to_review(): void
+    {
+        [$order, $token] = $this->guestOrder();
+        Http::fake([
+            self::KHALTI.'initiate/' => Http::response(['pidx' => 'pidxNoAmount0000000000', 'payment_url' => 'https://test-pay.khalti.com/?pidx=pidxNoAmount0000000000', 'expires_at' => now()->addHour()->toIso8601String()]),
+            self::KHALTI.'lookup/' => Http::response(['pidx' => 'pidxNoAmount0000000000', 'total_amount' => 'n/a', 'status' => 'Completed', 'transaction_id' => 'T1']),
+        ]);
+        $this->startPayment($order, $token, 'khalti')->assertCreated();
+
+        $this->get('/payments/khalti/return?pidx=pidxNoAmount0000000000&status=Completed');
+
+        $this->assertSame('pending_payment', $order->refresh()->status->value);
+        $this->assertSame(PaymentAttemptStatus::NeedsReview, PaymentAttempt::query()->sole()->status);
+    }
+
+    public function test_return_urls_store_only_short_scalar_values(): void
+    {
+        $this->get('/payments/khalti/return?pidx=unknown&status='.str_repeat('x', 5000).'&purchase_order_id[]=a');
+
+        $payload = WebhookEvent::query()->sole()->payload;
+        $this->assertLessThanOrEqual(100, mb_strlen($payload['status'] ?? ''));
+        $this->assertArrayNotHasKey('purchase_order_id', $payload);
+    }
 }

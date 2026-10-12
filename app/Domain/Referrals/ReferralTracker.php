@@ -33,7 +33,7 @@ class ReferralTracker
     {
         $profile = $this->lookup->eligible($code);
         $link = $profile && $linkSlug ? $this->activeLink($profile, $linkSlug) : null;
-        $destination = $this->destinations->resolve($link, $request->query('to') ? (string) $request->query('to') : null);
+        $destination = $this->destinations->resolve($link, is_string($request->query('to')) && $request->query('to') !== '' ? $request->query('to') : null);
 
         // Unknown or ineligible affiliates, bots and floods are redirected
         // normally but leave no click and no cookie.

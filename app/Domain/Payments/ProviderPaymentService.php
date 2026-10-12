@@ -189,7 +189,11 @@ class ProviderPaymentService
 
             switch ($status->outcome) {
                 case GatewayStatus::PAID:
-                    if ($status->amountMinor !== null && $status->amountMinor !== $locked->amount_minor) {
+                    if ($status->amountMinor === null) {
+                        $review = 'The provider reports this payment complete but gave no readable amount. Check the merchant dashboard before doing anything.';
+                        break;
+                    }
+                    if ($status->amountMinor !== $locked->amount_minor) {
                         $review = 'The provider reports '.number_format(($status->amountMinor) / 100, 2).' paid, but the attempt was for '.number_format($locked->amount_minor / 100, 2).'. Check the merchant dashboard before doing anything.';
                         break;
                     }
@@ -311,6 +315,8 @@ class ProviderPaymentService
      */
     private function recordEvent(string $provider, string $kind, array $payload, ?bool $signatureValid): WebhookEvent
     {
+        // Anyone can call the return URLs, so keep only short scalar values.
+        $payload = array_map(fn ($v) => mb_substr((string) $v, 0, 100), array_filter($payload, 'is_scalar'));
         ksort($payload);
         $key = hash('sha256', $provider.'|'.$kind.'|'.json_encode($payload));
 
