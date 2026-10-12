@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Store\ProductImages;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductRequest;
 use App\Http\Resources\Store\ProductResource;
+use App\Models\CommissionRule;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -47,9 +52,67 @@ class ProductController extends Controller
         return new ProductResource($product->load('category'));
     }
 
+    public function storeImage(Request $request, Product $product, ProductImages $images): ProductResource
+    {
+        $request->validate(['image' => ['required', 'file', 'max:5120']], ['image.max' => 'The photo must be 5 MB or smaller.']);
+        $images->replace($product, $request->file('image'), $request->user());
+
+        return new ProductResource($product->load('category'));
+    }
+
+    public function destroyImage(Request $request, Product $product, ProductImages $images): ProductResource
+    {
+        $images->remove($product, $request->user());
+
+        return new ProductResource($product->load('category'));
+    }
+
     public function categories(): array
     {
-        return ['data' => ProductCategory::query()->orderBy('name')->get(['id', 'name', 'slug', 'is_active'])];
+        return ['data' => ProductCategory::query()->withCount('products')->orderBy('name')->get()
+            ->map(fn (ProductCategory $c) => $c->only(['id', 'name', 'slug', 'is_active']) + ['products_count' => $c->products_count])];
+    }
+
+    /** The web address (slug) stays fixed, because shared store links may use it. */
+    public function updateCategory(Request $request, ProductCategory $category): array
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'min:2', 'max:120'],
+            'is_active' => ['sometimes', 'boolean'],
+            'slug' => ['prohibited'],
+        ], ['slug.prohibited' => 'A category\'s web address cannot change.']);
+
+        $category->fill($data);
+        $changes = $category->getDirty();
+        if ($changes !== []) {
+            DB::transaction(function () use ($category, $changes) {
+                $category->save();
+                $this->audit->log('product_category.updated', $category, $changes);
+            });
+        }
+
+        return ['data' => $category->only(['id', 'name', 'slug', 'is_active']) + ['products_count' => $category->products()->count()]];
+    }
+
+    /** Only a category with no products, past orders or commission rules can be deleted. */
+    public function destroyCategory(ProductCategory $category): Response
+    {
+        if ($category->products()->exists()) {
+            throw ValidationException::withMessages(['category' => 'Move this category\'s products to another category first.']);
+        }
+        if (DB::table('order_items')->where('category_id', $category->id)->exists()) {
+            throw ValidationException::withMessages(['category' => 'Past orders use this category, so it stays for reports. Hide it instead.']);
+        }
+        if (CommissionRule::query()->where('product_category_id', $category->id)->exists()) {
+            throw ValidationException::withMessages(['category' => 'A commission rule uses this category. Hide the category instead.']);
+        }
+
+        DB::transaction(function () use ($category) {
+            $category->delete();
+            $this->audit->log('product_category.deleted', $category, $category->only(['name', 'slug']));
+        });
+
+        return response()->noContent();
     }
 
     public function storeCategory(Request $request): JsonResponse

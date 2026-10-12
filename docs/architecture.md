@@ -1,6 +1,6 @@
 # Architecture
 
-This describes release 1.1.0 (Phases 1 to 10). The full target design is in [phase-0-plan.md](phase-0-plan.md).
+This describes release 1.2.0 (Phases 1 to 11). The full target design is in [phase-0-plan.md](phase-0-plan.md).
 
 ## Overview
 
@@ -21,7 +21,7 @@ Mobile/API client ──bearer token──────┘          │
 ## Authentication
 
 - **Web app:** Sanctum stateful session. The SPA fetches `/sanctum/csrf-cookie` once and sends `X-XSRF-TOKEN` on writes. Login and register without `device_name` start a session.
-- **API clients:** send `device_name` to `/auth/login` or `/auth/register` and receive a bearer token. Logout deletes that token. A password reset deletes all tokens.
+- **API clients:** send `device_name` to `/auth/login` or `/auth/register` and receive a bearer token. Logout deletes that token. A password reset deletes all tokens. A password change (`POST /auth/password`) deletes every other token and session and keeps the current one.
 - **Email verification:** a signed, 60-minute link to `GET /api/v1/auth/verify-email/{public_id}/{hash}`, which redirects to the SPA's `/email-verified` page.
 - **Password reset:** the emailed link opens the SPA's `/reset-password` page, which posts to the API. The forgot-password endpoint answers the same way whether or not the account exists.
 - Verification and reset emails are queued notifications with retries, so a mail outage never blocks a request.
@@ -40,7 +40,26 @@ Users have an internal auto-increment `id`, which never leaves the server, and a
 
 `audit_logs` is append-only. The model throws on update or delete, and in production the database user should have only `INSERT, SELECT` on that table. `AuditLogger` redacts keys that look like secrets (password, token, secret, signature, api key, account number, card) and stores IP addresses as an HMAC keyed with `APP_KEY`, not as the raw address.
 
-About 60 actions are logged: sign-in and account events, every membership change, rule, plan, coupon, campaign (`campaign.created`, `campaign.updated`) and product change, marketing material changes (`marketing_asset.created`, `.updated`, `.deleted`), payment confirmations, refunds, disputes, fulfilment steps, commission holds, voids and adjustments, payout steps, payout-detail views and changes, exports, manual attribution, and fraud flags raised and reviewed (`fraud_flag.raised`, `fraud_flag.reviewed`). `grep -rhoE "audit->log\('[a-z_.]+'" app | sort -u` lists them.
+About 70 actions are logged: sign-in and account events, every membership change, rule, plan, coupon, campaign (`campaign.created`, `campaign.updated`) and product change, marketing material changes (`marketing_asset.created`, `.updated`, `.deleted`), payment confirmations, refunds, disputes, fulfilment steps, commission holds, voids and adjustments, payout steps, payout-detail views and changes, exports, manual attribution, and fraud flags raised and reviewed (`fraud_flag.raised`, `fraud_flag.reviewed`).
+
+Added in 1.2.0:
+
+| Action | When | Properties |
+|---|---|---|
+| `admin.staff_created` | A staff member is invited on the Staff screen (also written by `affiliate:create-staff`) | `via` (`screen` or `console`), `role` |
+| `admin.staff_invitation_resent` | A new set-password link is sent | none |
+| `admin.staff_role_changed` | A staff member's role is changed on the Staff screen | `from`, `to` |
+| `user.status_changed` | An account is disabled or re-enabled, on screen or with `affiliate:set-user-status` | `via`, `from`, `to`, `reason` |
+| `setting.changed` | A programme setting is saved | `key`, `from`, `to` |
+| `setting.reset` | An override is removed | `key`, `from`, `to` (the default) |
+| `user.profile_updated` | Someone changes their own name or phone | `fields` (names only, no values) |
+| `auth.password_changed` | Someone changes their own password | none |
+| `product.image_changed` | A product photo is added or replaced | `width`, `height` |
+| `product.image_removed` | A product photo is removed | none |
+| `product_category.updated` | A category is renamed, hidden or shown (not written when nothing changed) | the changed columns |
+| `product_category.deleted` | An unused category is deleted | `name`, `slug` |
+
+`grep -rhoE "log\('[a-z_]+\.[a-z_.]+'" app | sort -u` lists them all.
 
 ## Affiliate onboarding (Phase 2)
 
@@ -111,6 +130,14 @@ About 60 actions are logged: sign-in and account events, every membership change
 - **Marketing materials.** `App\Domain\Marketing\MarketingAssetService` stores uploads on the private `local` disk (`storage/app/private/marketing`) under generated names, with the type sniffed from the content (no SVG). Files are served only through the API with `nosniff` and a sandbox CSP. Campaign materials are shown only while the campaign runs, to affiliates taking part.
 - **Public programme page.** `GET /store/affiliate-programme` (`AffiliateProgrammeController`) returns live settings, the global rate and the current terms for the `/affiliates` page.
 
+## Phase 11 additions (1.2.0)
+
+- **Staff accounts.** `App\Domain\Staff\StaffAccounts` invites, re-invites (only before the first sign-in), changes roles, and disables or re-enables staff. An invitation creates the account with a random password and a verified email, and queues `StaffInvitation`, which carries a normal password-reset token. `setStatus` refuses self-disable and disabling the last active Super Administrator, and on disable deletes the account's tokens and sessions. `changeRole` swaps the staff role, refuses a change to your own role and demoting the last active Super Administrator, deletes the account's tokens and sessions, and audits `admin.staff_role_changed`. `Admin\StaffController` (`/admin/staff`, `admins.manage`) and the `affiliate:set-user-status` command both use it.
+- **Programme settings.** `App\Domain\Settings\SettingsRegistry` lists the 18 settings that may be changed on screen, each a path under `config/affiliate.php`, with its type and limits. `App\Domain\Settings\SystemSettings` stores overrides in `system_settings` and applies them over `config('affiliate.*')` in `AppServiceProvider::boot`, so the rest of the code keeps reading `config()`. The `.env` defaults are kept under the config key `system_settings_defaults`, and every registered setting is set to its override or its default at each boot. Because `config:cache` boots the app first, this undoes any override baked into the config cache, so removing an override always returns to the `.env` value. The overrides are cached forever under one cache key. Saving or resetting clears that key and sets the same signal as `php artisan queue:restart`, so queue workers pick up the change after their current job. `.env` values are now defaults: a saved override wins. Secrets, payment keys and technical settings are not in the registry. `Admin\SettingsController` serves `/admin/settings` (`settings.manage`).
+- **Own profile.** `Auth\ProfileController`: `PATCH /auth/me` (name, phone) and `POST /auth/password` (current password required; other sessions and tokens deleted; `PasswordChanged` emailed). Email is not self-service.
+- **Product photos.** `App\Domain\Store\ProductImages` checks the type from the content (JPEG, PNG, WebP), stores the file on the private `local` disk under `storage/app/private/products` with a new ULID name each time, and deletes the old file. `GET /media/products/{file}` (a web route without session or CSRF) serves only files a product uses, with a one-year immutable cache, `nosniff` and a sandbox CSP. `ProductResource` adds `image_url`.
+- **Categories.** `PATCH` and `DELETE /admin/categories/{category}`: rename and hide or show; the slug is fixed. Delete is refused while products, past order lines or commission rules use the category. Update and delete save and audit in one transaction; an update that changes nothing writes no audit entry.
+
 ## Errors
 
 Every `/api/*` response is JSON, including 401, 403, 404, 422 and 500. With `APP_DEBUG=false`, server errors return `{"message":"Server Error"}` only, with no stack trace, SQL or configuration.
@@ -139,6 +166,10 @@ Validation errors use Laravel's standard shape:
 | affiliate application, closing own membership | 6/min per user |
 | referral link creation | 30/min per user |
 | marketing material upload | 30/min per user |
+| product photo upload | 30/min per user |
+| own profile change | 20/min per user |
+| own password change | 6/min per user |
+| staff invitation | 20/min per user; resend 10/min per user |
 | affiliate marketing file download | 120/min per user |
 | `exports` (report CSV/XLSX) | 10/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
@@ -169,20 +200,22 @@ From `routes/console.php`. Times are Nepal time where stated.
 
 ## Configuration
 
-Business defaults (timezone, currency, attribution window, holding period, payout minimum, retention, marketing upload size, fraud thresholds) live in `config/affiliate.php` and are set from `.env`. Timestamps are stored in UTC. Business dates use `AFFILIATE_BUSINESS_TIMEZONE` (Asia/Kathmandu).
+Business defaults (timezone, currency, attribution window, holding period, payout minimum, retention, marketing upload size, fraud thresholds) live in `config/affiliate.php` and are set from `.env`. Since 1.2.0 the 18 programme settings in `SettingsRegistry` can be overridden on the Settings screen; an override in `system_settings` wins over the `.env` value. Timestamps are stored in UTC. Business dates use `AFFILIATE_BUSINESS_TIMEZONE` (Asia/Kathmandu).
 
 ## Directory layout
 
 ```
 app/Domain/Audit          AuditLogger
 app/Domain/Affiliates     Membership lifecycle
-app/Domain/Store          Checkout, coupons, order numbers, cancellation, fulfilment
+app/Domain/Store          Checkout, coupons, order numbers, cancellation, fulfilment, product photos
 app/Domain/Referrals      Click tracking, bot filtering, attribution, manual attribution, reports
 app/Domain/Payments       Manual confirmation, eSewa/Khalti gateways, PaymentRecorder, refunds, disputes
 app/Domain/Commissions    Rules, calculation, lifecycle, maturation, ledger, adjustments, reconciliation
 app/Domain/Payouts        Payout methods (encrypted) and payouts
 app/Domain/Fraud          FraudDetector: fraud flags and their review
 app/Domain/Marketing      MarketingAssetService: uploads, safe file responses
+app/Domain/Settings       SettingsRegistry and SystemSettings: programme settings changed on screen
+app/Domain/Staff          StaffAccounts: invitations, disable and re-enable
 app/Domain/Reporting      Metrics, report registry, CSV/XLSX export
 app/Enums                 Roles, permissions and every status (orders, payments, commissions, payouts, ...)
 app/Support/Authorization PermissionMatrix

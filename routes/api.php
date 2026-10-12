@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\V1\Admin\ProductController;
 use App\Http\Controllers\Api\V1\Admin\ReconciliationController;
 use App\Http\Controllers\Api\V1\Admin\ReferralReportController as AdminReferralReportController;
 use App\Http\Controllers\Api\V1\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Api\V1\Admin\SettingsController;
+use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\TermsController;
 use App\Http\Controllers\Api\V1\Affiliate\AffiliateMembershipController;
 use App\Http\Controllers\Api\V1\Affiliate\CampaignController as AffiliateCampaignController;
@@ -34,6 +36,7 @@ use App\Http\Controllers\Api\V1\Affiliate\ReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
+use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Store\AffiliateProgrammeController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
@@ -84,6 +87,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::get('me', [AuthController::class, 'me'])->name('me');
+            Route::patch('me', [ProfileController::class, 'update'])->middleware('throttle:20,1')->name('me.update');
+            Route::post('password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('password.change');
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::post('email/verification-notification', [EmailVerificationController::class, 'resend'])
                 ->middleware('throttle:6,1')->name('verification.send');
@@ -172,6 +177,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::patch('products/{product}', [ProductController::class, 'update'])->middleware($catalog)->name('products.update');
                 Route::get('categories', [ProductController::class, 'categories'])->middleware($catalog)->name('categories.index');
                 Route::post('categories', [ProductController::class, 'storeCategory'])->middleware($catalog)->name('categories.store');
+                Route::patch('categories/{category}', [ProductController::class, 'updateCategory'])->whereNumber('category')->middleware($catalog)->name('categories.update');
+                Route::delete('categories/{category}', [ProductController::class, 'destroyCategory'])->whereNumber('category')->middleware($catalog)->name('categories.destroy');
+                Route::post('products/{product}/image', [ProductController::class, 'storeImage'])->middleware([$catalog, 'throttle:30,1'])->name('products.image.store');
+                Route::delete('products/{product}/image', [ProductController::class, 'destroyImage'])->middleware($catalog)->name('products.image.destroy');
 
                 Route::get('coupons', [CouponController::class, 'index'])->middleware($campaigns)->name('coupons.index');
                 Route::post('coupons', [CouponController::class, 'store'])->middleware($campaigns)->name('coupons.store');
@@ -183,6 +192,18 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->whereUlid('campaign')
                     ->middleware($campaigns.'|'.Permission::CommissionRulesManage->value.'|'.Permission::CommissionsView->value)->name('campaigns.show');
                 Route::patch('campaigns/{campaign}', [CampaignController::class, 'update'])->whereUlid('campaign')->middleware($campaigns)->name('campaigns.update');
+
+                $admins = 'permission:'.Permission::AdminsManage->value;
+                Route::get('staff', [StaffController::class, 'index'])->middleware($admins)->name('staff.index');
+                Route::post('staff', [StaffController::class, 'store'])->middleware([$admins, 'throttle:20,1'])->name('staff.store');
+                Route::post('staff/{user}/invitation', [StaffController::class, 'resendInvitation'])->whereUlid('user')->middleware([$admins, 'throttle:10,1'])->name('staff.invitation');
+                Route::post('staff/{user}/status', [StaffController::class, 'status'])->whereUlid('user')->middleware($admins)->name('staff.status');
+                Route::post('staff/{user}/role', [StaffController::class, 'role'])->whereUlid('user')->middleware($admins)->name('staff.role');
+
+                $settings = 'permission:'.Permission::SettingsManage->value;
+                Route::get('settings', [SettingsController::class, 'index'])->middleware($settings)->name('settings.index');
+                Route::patch('settings', [SettingsController::class, 'update'])->middleware($settings)->name('settings.update');
+                Route::delete('settings/{key}', [SettingsController::class, 'reset'])->where('key', '[a-z_.]+')->middleware($settings)->name('settings.reset');
 
                 $assets = 'permission:'.Permission::MarketingAssetsManage->value;
                 Route::get('marketing-assets', [MarketingAssetController::class, 'index'])->middleware($assets)->name('marketing-assets.index');

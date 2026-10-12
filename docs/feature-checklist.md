@@ -1,6 +1,6 @@
 # Feature checklist
 
-Checked against the master prompt, sections 5 to 21 and the section 29 deliverables. First checked 2026-10-12 for release 1.0.0 (branch `phase-9-release`). Updated for release 1.1.0 (branch `phase-10-gaps`): the rows for campaigns, marketing materials, fraud signals, affiliate notices and the public programme page.
+Checked against the master prompt, sections 5 to 21 and the section 29 deliverables. First checked 2026-10-12 for release 1.0.0 (branch `phase-9-release`). Updated for release 1.1.0 (branch `phase-10-gaps`): the rows for campaigns, marketing materials, fraud signals, affiliate notices and the public programme page. Updated for release 1.2.0 (branch `phase-11-screens`): the rows for staff accounts, settings, account self-service, product images and categories.
 
 Each status was checked in code, routes (`php artisan route:list`), migrations and tests, not taken from the docs. Test names are in the form `File::test_name` and live under `tests/`.
 
@@ -16,24 +16,26 @@ Status meanings:
 
 | Status | Count |
 |---|---|
-| Done | 276 |
-| Partial | 27 |
-| Not built | 6 |
+| Done | 280 |
+| Partial | 25 |
+| Not built | 4 |
 | Not built (optional) | 10 |
 | Needs external setup | 6 |
 | **Total** | **325** |
 
 The most important gaps:
 
-1. **Staff and settings are managed from the console and `.env`.** There is no screen for staff accounts, roles or programme settings (payout minimum, holding period, fraud thresholds and so on).
+1. **Integrations are configured in `.env`, and role permissions are fixed in code.** Staff accounts, role changes and the 18 programme settings now have screens; payment keys, mail and retention do not.
 2. **Campaigns have no landing pages,** and their budget is tracked but not enforced. Reports and dashboards still group "campaigns" by coupon (ADR 0010).
 3. **Some fraud patterns raise no flag:** invalid referral attempts and repeated failed sign-ins are rate-limited but not flagged. Flags never block anything.
 4. **Some notifications are missing:** a notice when an unpaid referred order is placed, a payout "processing" step, and new sign-ins.
-5. **Smaller gaps:** customers cannot edit their profile, there are no product images, categories cannot be edited, there is no personal-data deletion tool, and no accessibility audit has been done.
+5. **Smaller gaps:** there is no personal-data deletion tool, email addresses cannot be changed by their owner, and no accessibility audit has been done.
 6. The release-readiness assessment is in [release-readiness.md](release-readiness.md).
 7. **Going live needs outside setup:** eSewa and Khalti production keys and one live sandbox run each, a mail provider, legal and tax review, and real commission rules.
 
 Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing materials library, fraud flags with a review queue and configurable thresholds, affiliate notices for paid orders and reversed commission, a password-changed email, and the public programme page.
+
+Built in 1.2.0 (Phase 11): a Staff screen with email invitations and role changes, a Settings screen for 18 programme settings backed by `system_settings`, a profile page to change name, phone and password, product photos, and category rename, hide and delete.
 
 ---
 
@@ -43,13 +45,13 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 |---|---|---|
 | Six roles (Super Admin, Affiliate Manager, Finance Manager, Support, Affiliate, Customer) | Done | `app/Enums/Role.php`, `app/Support/Authorization/PermissionMatrix.php`, `RolesAndPermissionsSeeder` |
 | Permissions enforced on the server | Done | `permission:` middleware on every staff route (`routes/api.php`); `RolePermissionTest::test_admin_routes_enforce_permissions_on_the_server`. Uses spatie permissions and Gate checks; there are no Policy classes. |
-| Super Admin: settings, staff accounts, roles, integrations | Partial | Staff accounts only via `affiliate:create-admin`, `affiliate:create-staff` and `affiliate:set-user-status` (`StaffAccountCommandsTest`). No staff screen. Roles are fixed in code. Settings and integrations live in `.env` and `config/`. |
+| Super Admin: settings, staff accounts, roles, integrations | Partial | Staff screen `/admin/staff` (`admins.manage`): invite by email, resend, change role, disable and re-enable (`StaffScreenTest::test_super_admin_invites_staff_who_set_their_own_password_and_sign_in`, `test_role_change_swaps_access_signs_out_and_is_audited`, `test_disabling_signs_the_person_out_and_guards_hold`); the console commands remain (`StaffAccountCommandsTest`). Settings screen `/admin/settings` for 18 programme settings (`SettingsScreenTest::test_super_admin_changes_a_setting_and_it_applies_and_is_audited`). Roles are assigned and changed on the Staff screen; the four roles and their permissions are fixed in code. Partial because integrations (payment and mail credentials) live only in `.env` and `config/`. |
 | Affiliate Manager: applications, members, rules, payout review | Partial | Applications, members, rules, campaigns and marketing materials are done. Payout review is held by Finance only (`docs/permissions-matrix.md`). |
 | Finance Manager without system config access | Done | `RolePermissionTest::test_finance_permissions_do_not_include_system_configuration` |
 | Support: view orders and attribution, no money actions | Done | `RolePermissionTest::test_support_cannot_touch_money`, `AdminStoreTest::test_support_sees_masked_orders_with_attribution_but_cannot_change_them` |
 | Affiliate Member: own profile, links, earnings, payouts | Done | `/api/v1/affiliate/*` routes; `AffiliateAuthorizationTest::test_affiliate_endpoints_never_accept_another_members_id` |
 | Customer: shop, order, use referral codes | Done | `/api/v1/store/*`, `/api/v1/orders`; `CheckoutAttributionTest::test_referral_code_typed_at_checkout_attributes_the_order` |
-| Customer: manage their account | Partial | Customers can see their orders. There is no endpoint to change name, phone or password (only password reset). |
+| Customer: manage their account | Done | Orders, plus `/account/profile`: `PATCH /auth/me` (name, phone) and `POST /auth/password`; `ProfileTest::test_customer_updates_name_and_phone_but_not_email_or_role`, `test_password_change_needs_the_current_password_and_signs_out_other_devices`. Email changes go through support. |
 | Least privilege; hidden button is not the control | Done | `RolePermissionTest::test_affiliates_and_customers_hold_no_staff_permissions`, `test_user_with_no_role_is_denied` |
 | Permissions matrix document | Done | `docs/permissions-matrix.md`, generated by `affiliate:permissions-matrix`; `RolePermissionTest::test_permissions_matrix_document_is_in_sync` |
 | Tests for unauthorized access | Done | `RolePermissionTest`, `AffiliateAuthorizationTest`, `PayoutAccessTest::test_permissions`, `EarningsApiTest::test_customers_cannot_use_earnings_endpoints` |
@@ -115,8 +117,8 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | Requirement | Status | Evidence |
 |---|---|---|
 | Product name, SKU, slug, description, price, status | Done | `products` table; `/admin/products`; `AdminStoreTest::test_super_admin_manages_products_and_changes_are_audited` |
-| Product category | Partial | `product_categories`, `/admin/categories`. Categories can be added but not edited or deleted (`docs/known-limitations.md`). |
-| Product images | Not built | No image column or upload |
+| Product category | Done | `product_categories`, `/admin/categories`: add, rename, hide and delete when unused; `ProductImageAndCategoryTest::test_categories_can_be_renamed_hidden_and_deleted_only_when_unused` |
+| Product images | Done | One photo per product: `products.image_path`, `POST/DELETE /admin/products/{id}/image`, served at `/media/products/{file}`; `ProductImageAndCategoryTest::test_staff_add_a_photo_that_the_public_store_shows_and_replacing_it_removes_the_old_file`, `test_non_images_are_refused_and_unknown_files_are_not_served` |
 | Inventory integration | Not built | No stock column (ADR 0007: stock out of scope). "Where applicable" in the spec. |
 | Shipping requirements per product | Not built | Only a flat delivery charge (`STORE_SHIPPING_FLAT_MINOR`) |
 | Commission settings per product | Done | Product-scope commission rules (`CommissionRuleScope::Product`) |
@@ -244,10 +246,10 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | Provider-neutral design; bank, eSewa, Khalti | Done | `PayoutMethodType` enum; manual process (ADR 0009) |
 | Automated disbursement | Needs external setup | Not built. Would need verified merchant payout APIs (ADR 0009). |
 | Controlled manual payout with reference | Done | `POST /admin/payouts/{id}/mark-paid` needs a reference unique per method; `PayoutFlowTest::test_reference_is_unique_per_method` |
-| Setting: minimum threshold | Done | `AFFILIATE_PAYOUT_MINIMUM_MINOR` (NPR 1,000). Set in `.env`, no admin screen. |
-| Setting: holding period, currency, approval rules | Done | `.env` and `config/affiliate.php`; `PayoutFlowTest::test_separate_payer_can_be_required` |
+| Setting: minimum threshold | Done | `payouts.minimum_minor` (NPR 1,000 from `AFFILIATE_PAYOUT_MINIMUM_MINOR`), changeable on the Settings screen |
+| Setting: holding period, currency, approval rules | Done | Holding period, auto-release and separate payer on the Settings screen; currency in `.env`; `PayoutFlowTest::test_separate_payer_can_be_required` |
 | Settings: eligible countries, schedule, fees, tax/ID documents | Not built | Nothing in config or code. Payouts are on request only; no fees or withholding. |
-| Settings changeable by admins | Partial | Only through `.env` and a redeploy; no settings screen or `system_settings` table |
+| Settings changeable by admins | Done | `/admin/settings` (`settings.manage`), stored in `system_settings` and applied over `config/affiliate.php`; `SettingsScreenTest::test_super_admin_changes_a_setting_and_it_applies_and_is_audited`, `test_saved_settings_survive_a_fresh_boot`, `test_reset_returns_to_the_env_default`, `test_reset_after_config_cache_returns_to_the_env_value_not_the_cached_override` |
 | Collect only needed data; encrypt; restrict access | Done | `encrypted:array` cast; `PayoutAccessTest::test_full_details_only_for_payers_while_approved` |
 | States: requested, approved, paid, rejected, failed, cancelled | Done | `app/Enums/PayoutStatus.php` |
 | States: under review, processing | Partial | Not separate states. Requested means waiting for review; approved means ready to pay. |
@@ -275,7 +277,7 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | Rapid commission accumulation | Done | `rapid_earnings` flag; `FraudDetectionTest::test_sudden_earnings_and_clicks_without_orders_are_flagged` |
 | Repeated failed authentication | Partial | Rate limits and a 30-per-hour account lockout, failures audited (`InputHardeningTest::test_one_account_is_locked_after_many_failures_even_from_many_addresses`); no alert or flag |
 | Abnormal payout requests | Done | `large_payout` flag; `FraudDetectionTest::test_large_payout_and_payout_after_detail_change_are_flagged_and_shown_to_finance` |
-| Configurable risk thresholds | Done | `config/affiliate.php` `fraud` section, set with `AFFILIATE_FRAUD_*` in `.env` (no screen) |
+| Configurable risk thresholds | Done | `config/affiliate.php` `fraud` section, defaults from `AFFILIATE_FRAUD_*` in `.env`, changeable under **Fraud alerts** on the Settings screen |
 | Review queue | Done | `fraud_flags`, `/admin/fraud`, `GET /admin/fraud-flags`; open flags shown on the payout screen; `FraudDetectionTest::test_reviewer_dismisses_or_confirms_with_a_note_and_only_fraud_reviewers_see_the_queue` |
 | Hold commissions pending review | Done | `/admin/commissions/{id}/hold`; `LifecycleTest::test_held_commission_does_not_mature_until_the_hold_is_released` |
 | Reviewers document findings | Done | Each flag needs an outcome and a note, audited as `fraud_flag.reviewed`; hold and void need a reason. `FraudDetectionTest::test_reviewer_dismisses_or_confirms_with_a_note_and_only_fraud_reviewers_see_the_queue` |
@@ -300,7 +302,7 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | Reconciliation records | Done | `reconciliation_runs` |
 | Notifications, audit logs | Done | `notifications`, `audit_logs` |
 | `fraud_flags`, `fraud_reviews` | Done | `fraud_flags` (`2026_10_16_100000_create_fraud_flags_table.php`). The review (outcome, reviewer, time, note) is stored on the flag; there is no separate `fraud_reviews` table. |
-| `system_settings`, `integration_settings` | Not built | Settings live in `config/` and `.env` |
+| `system_settings`, `integration_settings` | Partial | `system_settings` (migration `2026_10_19_100000_create_system_settings_table`) holds programme settings. No `integration_settings`: payment and mail credentials stay in `.env` on purpose. |
 | Job monitoring | Done | `jobs`, `failed_jobs`; failed jobs pruned after 30 days |
 | Keys, foreign keys, unique constraints, indexes | Done | Migrations; unique keys back the idempotency rules (e.g. `commission_ledger_entries.idempotency_key`) |
 | Money precision and currency | Done | BIGINT minor units next to `CHAR(3)` currency |
@@ -366,7 +368,7 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | Payout requested, approved, rejected, completed | Done | `PayoutStatusChanged`, `NewPayoutRequest` |
 | Payout processing | Partial | No processing state, so no notice |
 | Suspicious activity review | Done | `FraudFlagsRaised` to fraud reviewers (and payout reviewers for payout flags), plus alerts for payments needing review (`PaymentNeedsReview`) and reconciliation drift (`DriftNotificationTest`); `FraudDetectionTest::test_conversion_far_above_normal_is_flagged_once_and_reviewers_are_told` |
-| Account security events | Partial | Payout detail change email (`PayoutMethodChanged`) and a password-changed email after a reset (`PasswordChanged`; `PasswordResetTest::test_password_can_be_reset_with_valid_token_and_tokens_are_revoked`); no notice for a new sign-in |
+| Account security events | Partial | Payout detail change email (`PayoutMethodChanged`) and a password-changed email after a reset or a change on the profile page (`PasswordChanged`; `PasswordResetTest::test_password_can_be_reset_with_valid_token_and_tokens_are_revoked`, `ProfileTest::test_password_change_needs_the_current_password_and_signs_out_other_devices`); no notice for a new sign-in |
 | Queued email | Done | All notifications implement `ShouldQueue` |
 | In-app notifications | Done | `database` channel; `/api/v1/notifications`; `SelfServiceTest::test_notifications_are_private_to_their_owner` |
 | Separate from accounting transactions | Done | Sent `afterCommit` |
@@ -428,8 +430,8 @@ Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing
 | 3 | Feature checklist | Done | This file |
 | 4 | Database schema and ER diagram | Done | `docs/database-schema.md` (Mermaid) |
 | 5 | Migrations and seeders | Done | `database/migrations` (17 files), `RolesAndPermissionsSeeder`, `DevelopmentSeeder` (refuses production); `CreateAdminCommandTest::test_production_seeder_creates_no_users` |
-| 6 | Complete backend | Partial | A settings store is missing; see sections 5 and 14 |
-| 7 | Complete responsive frontend | Partial | No staff or settings screens |
+| 6 | Complete backend | Partial | The settings store was added in 1.2.0. Remaining gaps: no integration settings store, campaign budgets are not enforced, no payout processing state (sections 8, 14, 16) |
+| 7 | Complete responsive frontend | Partial | Staff, settings and profile screens added in 1.2.0. No campaign landing pages and no accessibility audit (sections 8, 21) |
 | 8 | API specification | Done | `docs/api/openapi.yaml` (one route missing, see section 17) |
 | 9 | Authentication and authorization | Done | Sections 5 and 18 |
 | 10 | Registration and approval workflow | Done | Section 6 |

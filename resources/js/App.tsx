@@ -35,6 +35,9 @@ import AdminHomePage from '@/pages/admin/AdminHomePage';
 import AuditLogPage from '@/pages/admin/AuditLogPage';
 import FraudPage from '@/pages/admin/FraudPage';
 import CampaignsPage from '@/pages/admin/CampaignsPage';
+import StaffPage from '@/pages/admin/StaffPage';
+import SettingsPage from '@/pages/admin/SettingsPage';
+import ProfilePage from '@/pages/shared/ProfilePage';
 import AdminMarketingPage from '@/pages/admin/MarketingPage';
 import MarketingPage from '@/pages/account/MarketingPage';
 import EmailVerifiedPage from '@/pages/auth/EmailVerifiedPage';
@@ -75,6 +78,7 @@ export default function App() {
                             nav={[
                                 { to: '/account', label: 'Overview' },
                                 { to: '/account/orders', label: 'My orders' },
+                                { to: '/account/profile', label: 'My profile' },
                                 { to: '/account/affiliate', label: 'Affiliate programme' },
                                 { to: '/account/affiliate/dashboard', label: 'Affiliate dashboard', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/links', label: 'Referral links', permission: 'affiliate.portal' },
@@ -92,6 +96,7 @@ export default function App() {
                 <Route path="orders" element={<CustomerOrdersPage />} />
                 <Route path="affiliate" element={<AffiliatePage />} />
                 <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
+                <Route path="profile" element={<ProfilePage />} />
                 <Route path="affiliate/links" element={<ReferralLinksPage />} />
                 <Route path="affiliate/marketing" element={<MarketingPage />} />
                 <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
@@ -125,7 +130,10 @@ export default function App() {
                                 { to: '/admin/marketing', label: 'Marketing materials', permission: 'marketing_assets.manage' },
                                 { to: '/admin/products', label: 'Products', permission: 'catalog.manage' },
                                 { to: '/admin/terms', label: 'Affiliate terms', permission: 'affiliates.view' },
+                                { to: '/admin/staff', label: 'Staff', permission: 'admins.manage' },
+                                { to: '/admin/settings', label: 'Settings', permission: 'settings.manage' },
                                 { to: '/admin/audit-logs', label: 'Audit log', permission: 'audit_logs.view' },
+                                { to: '/admin/profile', label: 'My profile' },
                             ]}
                         />
                     </RequireAuth>
@@ -135,6 +143,9 @@ export default function App() {
                 <Route path="finance" element={<FinanceDashboardPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="audit-logs" element={<AuditLogPage />} />
+                <Route path="staff" element={<StaffPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="affiliates" element={<AffiliatesListPage />} />
                 <Route path="affiliates/:id" element={<AffiliateDetailPage />} />
                 <Route path="terms" element={<TermsPage />} />

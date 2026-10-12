@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Store\ProductImages;
 use App\Http\Controllers\Payments\PaymentReturnController;
 use App\Http\Controllers\ReferralRedirectController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -28,6 +29,12 @@ Route::middleware('throttle:30,1')->withoutMiddleware([StartSession::class, Shar
         Route::get('esewa/failure/{attempt}', [PaymentReturnController::class, 'esewaFailure'])->whereUlid('attempt')->name('esewa.failure');
         Route::get('khalti/return', [PaymentReturnController::class, 'khaltiReturn'])->name('khalti.return');
     });
+
+// Product photos for the public store (no session, cacheable).
+Route::get('/media/products/{file}', fn (string $file, ProductImages $images) => $images->serve($file))
+    ->where('file', '[0-9A-Z]{26}\\.(jpg|png|webp)')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
+    ->name('media.product');
 
 Route::view('/{any?}', 'app')
     ->where('any', '^(?!api/|up$|sanctum/).*$')

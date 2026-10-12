@@ -63,6 +63,12 @@ export default function ShopPage() {
                     {products.map((p) => (
                         <li key={p.id}>
                             <Link to={`/shop/${p.slug}`} className="block h-full rounded-xl border border-line bg-surface p-5 shadow-sm hover:border-brand-500">
+                                {p.image_url ? (
+                                    <img src={p.image_url} alt="" loading="lazy" className="mb-3 aspect-square w-full rounded-lg bg-canvas object-contain" />
+                                ) : (
+                                    // Keeps cards lined up when only some products have a photo.
+                                    products.some((other) => other.image_url) && <div className="mb-3 aspect-square w-full rounded-lg bg-canvas" aria-hidden />
+                                )}
                                 {p.category && <p className="text-xs font-medium uppercase tracking-wide text-muted">{p.category.name}</p>}
                                 <h2 className="mt-1 font-semibold text-ink">{p.name}</h2>
                                 <p className="mt-2 line-clamp-2 text-sm text-muted">{p.description}</p>

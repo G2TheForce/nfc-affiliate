@@ -27,6 +27,16 @@ Want to know more first? Press **Earn with us** in the store menu (or go to `/af
 
 You cannot apply to the programme until your email is verified.
 
+### My profile
+
+Open **My profile** in your account menu to change your own details.
+
+- **Your details**: change your **Full name** and **Phone (optional)**, then press **Save details**. Write the phone with the country code, for example `+9779812345678`. Leave it empty to remove it.
+- **Email**: you cannot change it yourself, because your email is how you get back into your account. Contact us if it must change.
+- **Change password**: enter your **Current password**, then your **New password** and **Repeat new password**. The rules are the same as when you registered, and the new password must be different from the current one. You stay signed in where you are. You are signed out on every other device, and we email you "Your password was changed".
+
+Your name and phone here belong to your store account. Your affiliate display name and the other answers from your application are changed with **Edit profile** on the **Affiliate programme** page.
+
 ---
 
 ## 2. Apply to the programme
@@ -319,7 +329,7 @@ You also see these under **Notifications** at the top of every page.
 - **Commission added to your available balance** — when commission passes its holding period.
 - **Your payout details were changed** — every time your payout details are saved.
 - **Payout request received**, **Payout approved**, **Payout sent** (with the transfer reference), **Payout request declined**, **Payout could not be completed** — as your payout moves along. You do not get an email when you cancel a request yourself.
-- **Your password was changed** — after your password is reset. You are signed out on your other devices. **If you did not do this, reset your password straight away and contact us.** This email is not shown under **Notifications**.
+- **Your password was changed** — after your password is reset, or after you change it in **My profile**. You are signed out on your other devices. **If you did not do this, reset your password straight away and contact us.** This email is not shown under **Notifications**.
 
 ---
 

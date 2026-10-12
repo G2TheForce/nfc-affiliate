@@ -44,6 +44,7 @@ export default function ProductPage() {
             <Link to="/shop" className="text-sm text-muted hover:text-ink">
                 ← All products
             </Link>
+            {product.image_url && <img src={product.image_url} alt={product.name} className="aspect-square w-full rounded-lg bg-canvas object-contain" />}
             {product.category && <p className="text-xs font-medium uppercase tracking-wide text-muted">{product.category.name}</p>}
             <h1 className="text-2xl font-semibold text-ink">{product.name}</h1>
             <p className="text-xl font-semibold text-ink">{formatMoney(product.price_minor, product.currency)}</p>

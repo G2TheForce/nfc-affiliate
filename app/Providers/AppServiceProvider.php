@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Domain\Affiliates\AffiliateMembershipService;
 use App\Domain\Affiliates\ReferralIdentifierGenerator;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Settings\SystemSettings;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -46,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
         Password::defaults(fn () => $this->app->isProduction()
             ? Password::min(12)->letters()->mixedCase()->numbers()->uncompromised()
             : Password::min(12)->letters()->mixedCase()->numbers());
+
+        // Programme settings changed on the Settings screen override config/affiliate.php.
+        $this->app->make(SystemSettings::class)->apply();
 
         $this->configureRateLimiting();
         $this->configureAuthLinks();

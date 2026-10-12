@@ -133,8 +133,8 @@ Order lifecycle events for each affiliate.
 ## Store
 
 ### `products`, `product_categories`, `coupon_product`
-- `product_categories`: `name`, `slug` (unique), `is_active`. Categories have no `public_id`.
-- `products`: `public_id` (unique), `category_id` (nullable), `sku` (unique), `name`, `slug` (unique), `description`, `price_minor`, `currency`, `is_active` (indexed).
+- `product_categories`: `name`, `slug` (unique), `is_active`. Categories have no `public_id`. Since 1.2.0 the name and `is_active` can change, the slug cannot, and a category can be deleted only when no product, order line or commission rule refers to it.
+- `products`: `public_id` (unique), `category_id` (nullable), `sku` (unique), `name`, `slug` (unique), `description`, `image_path` (255, nullable; 1.2.0; generated name under `products/` on the private disk, never sent in API responses, which carry `image_url` instead), `price_minor`, `currency`, `is_active` (indexed).
 - `coupon_product`: a pivot with primary key `(coupon_id, product_id)`. A coupon with no rows here applies to every product.
 
 ### `coupons`
@@ -273,6 +273,13 @@ Signals for staff review. A flag never changes money by itself.
 - Columns: `public_id` (unique), `affiliate_profile_id` (restrict), `signal` (32; `FraudSignal`: `high_conversion`, `clicks_without_orders`, `refund_rate`, `rapid_earnings`, `large_payout`, `payout_after_detail_change`), `severity` (`low`, `medium` or `high`), `details` (JSON: what was measured and the threshold), `subject_type` and `subject_id` (nullable; `payout` and the payout's public id), `dedupe_key` (120, **unique**), `status` (`FraudFlagStatus`: `open`, `dismissed`, `confirmed`; default `open`), `detected_at`, `reviewed_by` (nullable, set null on delete), `reviewed_at`, `review_note` (1000), timestamps.
 - Indexes: `(status, detected_at)`, `(affiliate_profile_id, status)`.
 - Invariants: the unique `dedupe_key` (signal, affiliate and day or payout) stops a repeated run from raising the same flag twice. A flag is reviewed once.
+
+## Settings (1.2.0)
+
+### `system_settings`
+Programme settings changed on the Settings screen. Each row overrides one value from `config/affiliate.php`; a missing row means the `.env` default applies.
+- Columns: `key` (100, **unique**; a key from `SettingsRegistry`, for example `payouts.minimum_minor`), `value` (JSON), `updated_by` (nullable, set null on delete), timestamps.
+- Invariants: rows with a key not in `SettingsRegistry` are ignored. Every change is in the audit log (`setting.changed`, `setting.reset`) with the old and new value. Overrides are cached; write to this table only through the Settings screen or API, never by hand, or the cache will not notice.
 
 ## Uniqueness and idempotency at a glance
 

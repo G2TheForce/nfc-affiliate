@@ -1,6 +1,20 @@
 # Changelog
 
-## 1.1.0 (Unreleased)
+## 1.2.0 (Unreleased)
+
+Adds the staff and settings screens, profile editing, and product photos (Phase 11). [Report](docs/phase-11-report.md)
+
+- **Staff screen** (`/admin/staff`, Super Administrator): invite staff by email with a link to set their own password, resend the link until they first sign in, change a member's role, and disable or re-enable an account with a reason. A role change or a disable signs the person out everywhere. Nobody can change their own role or disable themselves, and the last active Super Administrator can be neither demoted nor disabled. `affiliate:set-user-status` now uses the same rules.
+- **Settings screen** (`/admin/settings`, Super Administrator): 18 programme settings (attribution, holding period and auto-release, payout minimum and separate payer, delivery charge, reapply wait and fraud thresholds) can be changed without the server. A saved value wins over `.env`, which now holds the defaults. **Use default** removes the saved value. Changes apply at once, queue workers restart after their current job, and every change is audited.
+- **My profile** (`/account/profile` and `/admin/profile`): everyone can change their name and phone, and change their password with the current one. A password change signs out other devices and API tokens and sends a "Your password was changed" email. Email changes still go through support.
+- **Product photos and categories**: one JPG, PNG or WebP photo per product (up to 5 MB), shown in the shop and on the product page and served from `/media/products/`. Categories can be renamed, hidden and deleted when nothing uses them; each change is saved and audited in one transaction.
+- API spec version 1.2.0 with the new endpoints: `PATCH /auth/me`, `POST /auth/password`, `/admin/staff` (including `POST /admin/staff/{user}/role`), `/admin/settings`, `POST/DELETE /admin/products/{product}/image` and `PATCH/DELETE /admin/categories/{category}`.
+
+### Database changes
+
+Two new migrations create `system_settings` and add a nullable `image_path` to `products`. Neither changes or removes existing data. Back up `storage/app/private/products` with the other files. See [docs/migrations.md](docs/migrations.md).
+
+## 1.1.0
 
 Closes the main specification gaps left in 1.0.0 (Phase 10). [Report](docs/phase-10-report.md)
 

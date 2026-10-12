@@ -2,12 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Domain\Audit\AuditLogger;
-use App\Enums\Role;
+use App\Domain\Staff\StaffAccounts;
 use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Disables or re-enables any account, for example when a staff member leaves.
@@ -22,7 +21,7 @@ class SetUserStatus extends Command
 
     protected $description = 'Disable or re-enable an account (signs a disabled account out everywhere)';
 
-    public function handle(AuditLogger $audit): int
+    public function handle(StaffAccounts $accounts): int
     {
         $status = UserStatus::tryFrom((string) $this->argument('status'));
         $reason = trim((string) $this->option('reason'));
@@ -44,28 +43,18 @@ class SetUserStatus extends Command
             return self::FAILURE;
         }
 
-        if ($status === UserStatus::Disabled && $user->hasRole(Role::SuperAdmin->value)
-            && User::role(Role::SuperAdmin->value)->where('status', UserStatus::Active->value)->whereKeyNot($user->getKey())->doesntExist()) {
-            $this->error('This is the only active super administrator. Create another one first.');
+        try {
+            $changed = $accounts->setStatus($user, $status, $reason, null, via: 'console');
+        } catch (ValidationException $e) {
+            $this->error(collect($e->errors())->flatten()->first());
 
             return self::FAILURE;
         }
-
-        if ($user->status === $status) {
+        if (! $changed) {
             $this->info("{$user->email} is already {$status->value}.");
 
             return self::SUCCESS;
         }
-
-        DB::transaction(function () use ($user, $status, $reason, $audit) {
-            $previous = $user->status->value;
-            $user->forceFill(['status' => $status])->save();
-            if ($status === UserStatus::Disabled) {
-                $user->tokens()->delete();
-                DB::table('sessions')->where('user_id', $user->getKey())->delete();
-            }
-            $audit->log('user.status_changed', $user, ['via' => 'console', 'from' => $previous, 'to' => $status->value, 'reason' => $reason], null);
-        });
 
         $this->info("{$user->email} is now {$status->value}.");
 

@@ -202,6 +202,8 @@ const STATUS_STYLES: Record<string, string> = {
     running: 'bg-success/10 text-success',
     upcoming: 'bg-brand-50 text-brand-700',
     ended: 'bg-line text-muted',
+    active: 'bg-success/10 text-success',
+    disabled: 'bg-line text-muted',
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {

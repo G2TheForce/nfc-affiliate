@@ -29,7 +29,7 @@ php artisan affiliate:create-staff --role=affiliate_manager    # or finance_mana
 php artisan affiliate:set-user-status person@example.com disabled --reason="Left the company"
 ```
 
-Disabling signs the person out on every device. There is no staff-management screen yet, so these commands are the only way to add, disable or re-enable staff. Staff accounts can never join the affiliate programme.
+Disabling signs the person out on every device. Once the first Super Administrator can sign in, it is easier to add, disable and re-enable staff on the **Staff** screen (1.4). The commands still work, for example if nobody can sign in. Staff accounts can never join the affiliate programme.
 
 ### 1.2 Signing in
 
@@ -66,8 +66,11 @@ Every sign-in, failed sign-in and sign-out is written to the audit log. Repeated
 | Dashboard and reports | yes | yes | yes | one report only |
 | Export reports (CSV / Excel) | yes | | yes | |
 | Audit log | yes | | | |
+| Staff accounts | yes | | | |
+| Programme settings | yes | | | |
+| Your own name, phone and password | yes | yes | yes | yes |
 
-The left menu shows only the pages your role can open: **Dashboard**, **Finance**, **Reports**, **Affiliates**, **Orders**, **Commissions**, **Adjustments**, **Payouts**, **Commission rules**, **Fraud review**, **Reconciliation**, **Referral report**, **Campaigns**, **Coupons**, **Marketing materials**, **Products**, **Affiliate terms**, **Audit log**.
+The left menu shows only the pages your role can open: **Dashboard**, **Finance**, **Reports**, **Affiliates**, **Orders**, **Commissions**, **Adjustments**, **Payouts**, **Commission rules**, **Fraud review**, **Reconciliation**, **Referral report**, **Campaigns**, **Coupons**, **Marketing materials**, **Products**, **Affiliate terms**, **Audit log**, **Staff**, **Settings**. Everyone also has **My profile**.
 
 **Separation of duties built into the system**
 
@@ -76,6 +79,70 @@ The left menu shows only the pages your role can open: **Dashboard**, **Finance*
 - Optionally, the person who approves a payout cannot also confirm its transfer (see 6.3).
 
 Customer email addresses and phone numbers are partly hidden on every staff screen. To find an order by email, type the customer's full email address.
+
+### 1.4 Staff accounts (Super Administrator)
+
+Open **Staff**. Active accounts come first, then disabled ones. Each row shows the name, email, role, status and when the person last signed in. Your own row is marked **(you)** and has no buttons.
+
+**Add a staff member**
+
+1. Press **Add staff member**.
+2. Fill in **Full name** and **Email**, and choose a **Role**: Super Administrator, Affiliate Manager, Finance Manager or Customer Support. A short note under the role says what it can do.
+3. Press **Send invitation**.
+
+The person gets an email, "Your staff account for ...", with a **Set your password** button. The link works for as long as a password reset link (60 minutes). Their email address counts as verified, because only its owner can use the link. They can then sign in at the normal **Log in** page.
+
+If the link expired or the email went astray, press **Resend invitation** on their row. The button shows only for an active account that has never signed in. Once someone has signed in, an invitation cannot be sent again; they use **Forgot password?** on the sign-in page instead.
+
+An email address that already has an account (staff, affiliate or customer) cannot be added again.
+
+**Disable or re-enable**
+
+1. Press **Disable** (or **Re-enable**) on the row.
+2. Give a **Reason (kept in the audit log)**, at least 5 characters.
+3. Press **Disable account** (or **Re-enable account**).
+
+Disabling signs the person out on every device at once, and they cannot sign in until re-enabled. You cannot disable yourself, and the last active Super Administrator cannot be disabled. Add another one first.
+
+**Change someone's role**
+
+1. Press **Change role** on the row. It shows for active accounts other than your own.
+2. Choose the new **Role**. A short note says what it can do.
+3. Press **Change role**.
+
+The person is signed out on every device at once and signs in again with the new access. You cannot change your own role, and the last active Super Administrator cannot be moved to another role. Make someone else a Super Administrator first. The audit log records the old and new role, so it still shows who did what under which role.
+
+Adding, resending, changing roles, disabling and re-enabling are all recorded in the audit log. The server commands in 1.1 (create and disable) follow the same rules and are recorded the same way.
+
+### 1.5 Programme settings (Super Administrator)
+
+Open **Settings** to change the programme rules without asking the developer. The settings are grouped:
+
+| Group | Settings |
+|---|---|
+| Referrals | Which click gets the order (most recent or first), attribution window in days, whether an affiliate coupon beats an earlier click, days before a rejected applicant may apply again |
+| Commission | Holding period in days, whether commission is released automatically after it |
+| Payouts | Minimum payout, whether a different person must mark a payout paid (6.3) |
+| Store | Delivery charge per order |
+| Fraud alerts | The limits for each fraud signal (5.5) |
+
+1. Change one or more values. Amounts are in rupees. Each value has a lowest and highest allowed figure.
+2. Press **Save N change(s)** at the top. A value outside its limits is shown in red with the allowed range, and nothing is saved until you fix it.
+
+Changes apply straight away for everyone. Under each setting you see its default and, once changed, when and by whom. Press **Use default** to go back to the default.
+
+Some changes affect only what happens next. A new holding period applies to orders paid from now on, and a new attribution rule to clicks from now on. Existing commissions keep the dates they already have.
+
+Every change and every return to the default is recorded in the audit log with the old and new value.
+
+The defaults come from the server's `.env` file. Payment keys, email and other technical settings are not on this screen and stay in `.env`.
+
+### 1.6 My profile
+
+Open **My profile** (bottom of the left menu).
+
+- **Your details**: change your **Full name** and **Phone (optional)**, then press **Save details**. Write the phone with the country code, for example `+9779812345678`. Your email cannot be changed here, because it is how you get back into your account. Ask a Super Administrator, or the developer, if it must change.
+- **Change password**: enter your **Current password**, then the **New password** twice. The rules are the same as at sign-up, and the new password must differ from the current one. You stay signed in on this device. Every other device and API token is signed out, and you get a "Your password was changed" email.
 
 ---
 
@@ -137,7 +204,27 @@ Published terms **cannot be edited or removed**. Approved affiliates are asked t
 3. Untick **Visible in the shop** to hide a product. Products are hidden, never deleted.
 4. Press **Save**.
 
-To add a category, type it under **Categories** and press **Add**. The web address is made from the English letters in the name; a name with none (for example in Nepali script) gets a generated address. If the category already exists, a message says so. Categories cannot be renamed or removed from the screen.
+**Product photo**
+
+Each product can have one photo, shown in the shop and on the product page.
+
+1. Open the product with **Edit**.
+2. Under **Photo**, press **Add photo** (or **Replace photo**) and choose a JPG, PNG or WebP file of up to 5 MB, each side under 6,000 pixels.
+3. The photo is saved at once; you do not need to press **Save**. To take it off, press **Remove photo**.
+
+A new product gets its photo after its first save. A square photo about 1,200 pixels wide looks best.
+
+The system checks the file's real content, not its name. Other types, including SVG and GIF, are refused. A replaced or removed photo is deleted from the server.
+
+**Categories**
+
+To add a category, type it under **Categories** and press **Add**. The web address is made from the English letters in the name; a name with none (for example in Nepali script) gets a generated address. If the category already exists, a message says so.
+
+- **Rename** changes the name. The web address stays the same, so shared shop links keep working.
+- **Hide** takes the category out of the shop's category filter. Its products stay in the shop; hide them one by one if needed. **Show** brings it back.
+- **Delete** works only for a category nobody uses. It is refused while products are in it, while past orders refer to it, or while a commission rule uses it. Move the products, or hide the category instead.
+
+Photo changes and category changes are recorded in the audit log.
 
 ### 3.2 Coupons (Super Administrator, Affiliate Manager)
 
@@ -403,13 +490,13 @@ New flags are emailed to staff who can review fraud, and shown in their in-app n
 
 **Confirm problem** only records your finding. Then act: hold or void the commission from the affiliate's page, and reject the payout if one is waiting.
 
-The developer can change the limits in `.env` (the `AFFILIATE_FRAUD_*` settings). They are first guesses. If you see many flags that turn out fine, ask for them to be raised.
+A Super Administrator can change the limits under **Fraud alerts** on the **Settings** screen (1.5). They are first guesses. If you see many flags that turn out fine, raise them.
 
 ---
 
 ## 6. Payouts
 
-Affiliates request a payout from their dashboard. A request takes the whole available balance (minimum NPR 1,000). Reviewers get an in-app notification. The affiliate is emailed at each step.
+Affiliates request a payout from their dashboard. A request takes the whole available balance (minimum NPR 1,000 unless changed in **Settings**). Reviewers get an in-app notification. The affiliate is emailed at each step.
 
 ### 6.1 Review a request
 
@@ -431,7 +518,7 @@ A paid payout is final. If the money comes back later, use an adjustment (5.4).
 
 ### 6.3 Separate payer setting
 
-If your developer has switched on "require separate payer", the person who approved a payout cannot confirm its transfer. The screen then says **Another finance person must confirm the transfer, because you approved it.** It is off by default. Turn it on as soon as you have two finance people.
+If a Super Administrator has switched on **A different person must mark a payout paid** in **Settings** (1.5), the person who approved a payout cannot confirm its transfer. The screen then says **Another finance person must confirm the transfer, because you approved it.** It is off by default. Turn it on as soon as you have two finance people.
 
 ---
 
@@ -457,7 +544,7 @@ Finance Managers and Super Admins can download any report **as CSV** or **as Exc
 
 ### 7.4 Audit log (Super Administrator)
 
-**Audit log** lists every important action, newest first: **When (Nepal time)**, **Action**, **By** and **Subject**. This includes sign-ins, approvals, rule changes, campaign and marketing material changes, payments, refunds, holds, voids, adjustments, payouts, payout-detail views, exports, and fraud flags raised and reviewed. Entries cannot be edited or deleted from the app.
+**Audit log** lists every important action, newest first: **When (Nepal time)**, **Action**, **By** and **Subject**. This includes sign-ins, approvals, rule changes, campaign and marketing material changes, payments, refunds, holds, voids, adjustments, payouts, payout-detail views, exports, fraud flags raised and reviewed, staff accounts added, invited, given a new role and disabled, settings changed and reset, product photo and category changes, and profile and password changes. Entries cannot be edited or deleted from the app.
 
 ### 7.5 Notifications
 
@@ -472,7 +559,7 @@ Click **Notifications** in the header (a number shows unread items). Use **Mark 
 | Fraud reviewers | New fraud flags | Email and in app |
 | Payout reviewers | New fraud flags on a payout request | Email and in app |
 
-Customers are emailed a payment receipt and shipping details. Affiliates are emailed about their application, status changes, each paid order credited to them and its commission, commission reversed by a refund or by staff, newly available commission, payout steps and payout-detail changes. Everyone gets an email when their password is reset. The email to an affiliate about cancelled commission never includes your reason.
+Customers are emailed a payment receipt and shipping details. Affiliates are emailed about their application, status changes, each paid order credited to them and its commission, commission reversed by a refund or by staff, newly available commission, payout steps and payout-detail changes. Everyone gets an email when their password is reset or changed. New staff get an invitation email to set their password. The email to an affiliate about cancelled commission never includes your reason.
 
 ---
 

@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    Release 1.1.0 (Phases 1-10). 1.1.0 adds campaigns, marketing materials, fraud flags and the public affiliate programme facts. Money is integer minor units (paisa) with a currency code.
+    Release 1.2.0 (Phases 1-11). 1.1.0 added campaigns, marketing materials, fraud flags and the public affiliate programme facts. 1.2.0 adds staff accounts (invite, role change, disable), programme settings, editing your own profile and password, product photos, and category rename, hide and delete. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
     All errors are JSON. Validation errors return 422 with `message` and `errors`.
@@ -92,9 +92,11 @@ components:
         name: { type: string }
         slug: { type: string }
         description: { type: [string, 'null'] }
+        image_url: { type: [string, 'null'], format: uri, description: 'Public photo address under /media/products/, or null when the product has no photo' }
         price_minor: { type: integer, example: 150000 }
         currency: { type: string, example: NPR }
         category: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string }, slug: { type: string } } }
+        is_active: { type: boolean, description: Only in /admin responses }
     CartItems:
       type: array
       minItems: 1
@@ -375,6 +377,47 @@ components:
         reviewed_by: { type: [string, 'null'] }
         reviewed_at: { type: [string, 'null'], format: date-time }
         review_note: { type: [string, 'null'] }
+    StaffMember:
+      type: object
+      properties:
+        id: { type: string, description: Public ULID }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: [string, 'null'], enum: [super_admin, affiliate_manager, finance_manager, support, null] }
+        role_label: { type: [string, 'null'] }
+        status: { type: string, enum: [active, disabled] }
+        last_login_at: { type: [string, 'null'], format: date-time, description: Null until the person first signs in }
+        created_at: { type: [string, 'null'], format: date-time }
+        is_you: { type: boolean, description: True for the signed-in staff member }
+    Setting:
+      type: object
+      properties:
+        key: { type: string, example: commissions.holding_period_days, description: A path under config/affiliate.php }
+        group: { type: string, example: Commission }
+        label: { type: string }
+        help: { type: string }
+        type: { type: string, enum: [int, money, bool, choice], description: 'money is paisa' }
+        min: { type: [integer, 'null'] }
+        max: { type: [integer, 'null'] }
+        choices: { type: [array, 'null'], items: { type: object, properties: { value: { type: string }, label: { type: string } } } }
+        value: { description: 'Value in force (integer, boolean or string)' }
+        default: { description: 'Value from .env / config/affiliate.php, used when there is no override' }
+        overridden: { type: boolean }
+        updated_at: { type: [string, 'null'], format: date-time }
+        updated_by: { type: [string, 'null'], description: Name of the person who saved the override }
+    SettingsList:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Setting' } }
+        currency: { type: string, example: NPR }
+    StaffCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        is_active: { type: boolean }
+        products_count: { type: integer }
     MarketingAssetFields:
       type: object
       properties:
@@ -447,6 +490,43 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/User' } } } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      summary: Change your own name or phone (20/min, audited as user.profile_updated with field names only). Email cannot be changed here.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                phone: { type: [string, 'null'], pattern: '^\+[1-9]\d{7,14}$', description: E.164 with country code; null removes it }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/User' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /auth/password:
+    post:
+      summary: Change your own password (6/min, audited as auth.password_changed). Keeps the current session or token, deletes every other session and API token, and emails a notice.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string }
+                password: { type: string, minLength: 12, description: 'Same rules as registration; must differ from current_password' }
+                password_confirmation: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/User' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { description: 'Wrong current password (errors.current_password), or a weak, unconfirmed or unchanged new password (errors.password)' }
+        '429': { $ref: '#/components/responses/TooMany' }
   /auth/forgot-password:
     post:
       security: []
@@ -989,17 +1069,80 @@ paths:
       parameters: [{ name: product, in: path, required: true, schema: { type: string } }]
       responses:
         '200': { description: OK }
+  /admin/products/{product}/image:
+    post:
+      summary: Add or replace the product photo (catalog.manage, 30/min, audited as product.image_changed). The old file is deleted.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: product, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary, description: 'JPEG, PNG or WebP detected from the content; up to 5 MB; each side at most 6000 pixels' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Product' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: 'Not an accepted image, too large, or could not be saved (errors.image)' }
+        '429': { $ref: '#/components/responses/TooMany' }
+    delete:
+      summary: Remove the product photo and delete its file (catalog.manage, audited as product.image_removed). No change if there is none.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: product, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Product' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/categories:
     get:
-      summary: Categories (catalog.manage)
+      summary: Categories, including hidden ones, with product counts (catalog.manage)
       security: [{ bearer: [] }, { session: [] }]
       responses:
-        '200': { description: OK }
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/StaffCategory' } } } } } } }
     post:
-      summary: Create a category (catalog.manage)
+      summary: Create a category (catalog.manage, audited as product_category.created)
       security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                slug: { type: string, maxLength: 140, pattern: '^[a-z0-9][a-z0-9-]*$' }
       responses:
-        '201': { description: Created }
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { id: { type: integer }, name: { type: string }, slug: { type: string }, is_active: { type: boolean } } } } } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /admin/categories/{category}:
+    patch:
+      summary: Rename, hide or show a category (catalog.manage). Saved and audited as product_category.updated in one transaction, only when something changed. The slug cannot change.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: category, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                is_active: { type: boolean, description: false hides the category from GET /store/categories; its products stay listed }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffCategory' } } } } } }
+        '404': { description: Not found }
+        '422': { description: 'Invalid, or slug sent (errors.slug)' }
+    delete:
+      summary: Delete an unused category (catalog.manage). Deleted and audited as product_category.deleted in one transaction.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: category, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Not found }
+        '422': { description: 'Refused under errors.category while the category has products, past order lines or a commission rule' }
   /admin/coupons:
     get:
       summary: Coupons with usage counts (campaigns.manage)
@@ -1159,6 +1302,138 @@ paths:
       responses:
         '200': { description: 'The file, with X-Content-Type-Options nosniff and Content-Security-Policy "default-src ''none''; sandbox"' }
         '404': { description: Not found or no file }
+  /admin/staff:
+    get:
+      summary: Staff accounts, active first, then by name (admins.manage)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/StaffMember' } }
+                  roles: { type: array, description: Roles that can be given, items: { type: object, properties: { value: { type: string }, label: { type: string } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Invite a staff member (admins.manage, 20/min, audited as admin.staff_created with via=screen). Creates the account with a verified email and no usable password, and emails a set-password link.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, role]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email, maxLength: 190, description: Lower-cased; must not belong to any account }
+                role: { type: string, enum: [super_admin, affiliate_manager, finance_manager, support] }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMember' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: 'Invalid, email taken, or not a staff role (errors.role)' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /admin/staff/{user}/invitation:
+    post:
+      summary: Send a new set-password link (admins.manage, 10/min, audited as admin.staff_invitation_resent)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: user, in: path, required: true, schema: { type: string }, description: Staff member public id }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMember' } } } } } }
+        '404': { description: Not a staff account }
+        '422': { description: 'Already signed in, use forgot-password instead (errors.user); or the account is disabled (errors.status)' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /admin/staff/{user}/role:
+    post:
+      summary: Change a staff member's role (admins.manage, audited as admin.staff_role_changed with from and to). Removes the old staff role, assigns the new one, and deletes the person's API tokens and sessions.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: user, in: path, required: true, schema: { type: string }, description: Staff member public id }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [super_admin, affiliate_manager, finance_manager, support] }
+      responses:
+        '200': { description: 'OK (also when the role was already the one asked for)', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMember' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Not a staff account }
+        '422': { description: 'Not a staff role, or refused under errors.role: changing your own role or demoting the last active Super Administrator' }
+  /admin/staff/{user}/status:
+    post:
+      summary: Disable or re-enable a staff account (admins.manage, audited as user.status_changed with via=screen). Disabling deletes the account's API tokens and sessions.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: user, in: path, required: true, schema: { type: string }, description: Staff member public id }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, reason]
+              properties:
+                status: { type: string, enum: [active, disabled] }
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200': { description: 'OK (also when the status was already the one asked for)', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMember' } } } } } }
+        '404': { description: Not a staff account }
+        '422': { description: 'Invalid, or refused under errors.status: disabling yourself or the last active Super Administrator' }
+  /admin/settings:
+    get:
+      summary: The 18 programme settings with their values, defaults and who last changed them (settings.manage)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SettingsList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      summary: Save one or more settings (settings.manage). Each changed value is audited as setting.changed; unchanged values are skipped. Applies at once and signals queue workers to restart.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [key, value]
+                    properties:
+                      key: { type: string, description: A key from GET /admin/settings }
+                      value: { description: 'Integer within min and max (money in paisa), boolean, or one of the choices' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SettingsList'
+                  - type: object
+                    properties:
+                      changed: { type: array, items: { type: string }, description: Keys that changed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: 'Unknown key (errors["settings.N.key"]) or a value out of range (errors["settings.N.value"]). Nothing is saved.' }
+  /admin/settings/{key}:
+    delete:
+      summary: Remove an override so the .env default applies again (settings.manage, audited as setting.reset). No change when there is no override.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: key, in: path, required: true, schema: { type: string, pattern: '^[a-z_.]+$' } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SettingsList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Unknown key }
   /admin/orders:
     get:
       summary: Orders with masked customer contact (orders.view); attribution filters need attribution.view
