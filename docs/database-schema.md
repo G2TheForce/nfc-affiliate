@@ -65,6 +65,16 @@ erDiagram
     affiliate_profiles ||--o{ payouts : "requests"
     payouts ||--|{ payout_items : "covers"
     commissions ||--o{ payout_items : "paid via"
+
+    campaigns ||--o{ campaign_affiliate : "taking part"
+    affiliate_profiles ||--o{ campaign_affiliate : "member"
+    campaigns ||--o{ campaign_product : "covers"
+    campaigns |o--o{ affiliate_links : "campaign link"
+    campaigns |o--o{ coupons : "campaign coupon"
+    campaigns |o--o{ order_attributions : "order came through"
+    campaigns |o--o{ commission_rules : "campaign scope"
+    campaigns |o--o{ marketing_assets : "campaign material"
+    affiliate_profiles ||--o{ fraud_flags : "flagged"
 ```
 
 Cardinality notation: `||` means exactly one, `|o` and `o|` mean zero or one, `o{` means zero or more, and `|{` means one or more. A `||` on the parent side means the foreign key is `NOT NULL`. A `|o` means the foreign key is nullable.
@@ -99,7 +109,7 @@ One affiliate membership per user.
 
 ### `affiliate_links`
 Named tracking links (called `referral_links` in the phase 0 plan).
-- Columns: `public_id` (unique), `affiliate_profile_id` (cascade on delete), `name`, `slug` (60), `product_id` (nullable), `utm_source`, `utm_medium`, `utm_campaign`, `is_active`.
+- Columns: `public_id` (unique), `affiliate_profile_id` (cascade on delete), `name`, `slug` (60), `product_id` (nullable), `utm_source`, `utm_medium`, `utm_campaign`, `is_active`, `campaign_id` (nullable, restrict on delete; added in 1.1.0).
 - Unique: `(affiliate_profile_id, slug)`. The slug is permanent, so it cannot be changed through the API.
 
 ### `referral_clicks`
@@ -110,7 +120,7 @@ One minimised row per counted click on `/ref/{code}/{link?}`.
 
 ### `order_attributions`
 The affiliate credited for an order.
-- Columns: `order_id` (**unique**, cascade), `affiliate_profile_id` (restrict), `source` (`AttributionSource`: `click`, `coupon`, `referral_code`, `manual`), `referral_click_id` (nullable), `coupon_id` (nullable), `policy` (20), `window_days`, `clicked_at`, `decided_by`, `reason`.
+- Columns: `order_id` (**unique**, cascade), `affiliate_profile_id` (restrict), `source` (`AttributionSource`: `click`, `coupon`, `referral_code`, `manual`), `referral_click_id` (nullable), `coupon_id` (nullable), `policy` (20), `window_days`, `clicked_at`, `decided_by`, `reason`, `campaign_id` (nullable, restrict; added in 1.1.0: the campaign the order came through, set at checkout).
 - Index: `(affiliate_profile_id, created_at)`.
 - Invariants: an order has at most one attribution. Manual changes need a reason and are audited. The outcome of the attribution decision is also stored on the order (`orders.attribution_status`).
 
@@ -128,7 +138,7 @@ Order lifecycle events for each affiliate.
 - `coupon_product`: a pivot with primary key `(coupon_id, product_id)`. A coupon with no rows here applies to every product.
 
 ### `coupons`
-- Columns: `public_id` (unique), `code` (40, **unique**, stored in upper case), `affiliate_profile_id` (nullable, restrict on delete), `discount_type` (`DiscountType`: `percent`, `fixed`), `discount_value` (basis points for percent, paisa for fixed), `min_order_minor` (default 0), `max_discount_minor` (nullable), `usage_limit`, `per_customer_limit`, `starts_at`, `ends_at`, `is_active`, `earns_commission` (default true), `created_by`.
+- Columns: `public_id` (unique), `code` (40, **unique**, stored in upper case), `affiliate_profile_id` (nullable, restrict on delete), `discount_type` (`DiscountType`: `percent`, `fixed`), `discount_value` (basis points for percent, paisa for fixed), `min_order_minor` (default 0), `max_discount_minor` (nullable), `usage_limit`, `per_customer_limit`, `starts_at`, `ends_at`, `is_active`, `earns_commission` (default true), `created_by`, `campaign_id` (nullable, restrict; added in 1.1.0).
 
 ### `coupon_redemptions`
 - Columns: `coupon_id` (restrict), `order_id` (**unique**, cascade), `customer_key` (`CHAR(64)`, a keyed hash of the user id or normalised email), `discount_minor`, `voided_at` (set when the order is cancelled), `created_at`.
@@ -191,7 +201,7 @@ Every provider browser callback, recorded as it was received.
 `public_id` (unique), `name` (**unique**), `description`. An affiliate is put on a plan through `affiliate_profiles.commission_plan_id`. A null plan means the global default.
 
 ### `commission_rules`
-- Columns: `public_id` (unique), `name`, `scope` (`CommissionRuleScope`: `global`, `plan`, `category`, `product`, `affiliate`), `commission_plan_id`, `product_category_id`, `product_id`, `affiliate_profile_id` (all nullable, restrict on delete), `kind` (`CommissionRuleKind`: `percent`, `fixed`, `exclude`), `rate_bp`, `fixed_minor` (per unit), `currency`, `starts_at`, `ends_at`, `is_active`, `version` (default 1), `created_by`, `updated_by`.
+- Columns: `public_id` (unique), `name`, `scope` (`CommissionRuleScope`: `global`, `plan`, `category`, `product`, `affiliate`, `campaign`), `commission_plan_id`, `product_category_id`, `product_id`, `affiliate_profile_id`, `campaign_id` (all nullable, restrict on delete; `campaign_id` added in 1.1.0), `kind` (`CommissionRuleKind`: `percent`, `fixed`, `exclude`), `rate_bp`, `fixed_minor` (per unit), `currency`, `starts_at`, `ends_at`, `is_active`, `version` (default 1), `created_by`, `updated_by`.
 - Index: `(scope, is_active)`.
 - Invariants: `version` is bumped on every edit, and commissions record the version they used. The service refuses overlapping active rules for the same target.
 
@@ -236,6 +246,34 @@ One commission for each order line and affiliate.
 ### `payout_items` (immutable)
 `payout_id` and `commission_id` (both restrict), `amount_minor` (the commission's net amount when the payout was requested). Unique on `(payout_id, commission_id)`, plus an index on `commission_id`.
 
+## Campaigns (1.1.0)
+
+### `campaigns`
+A dated promotion. Its commission comes from `commission_rules` with scope `campaign`.
+- Columns: `public_id` (unique), `name` (120), `description` (2000, nullable), `starts_at`, `ends_at` (nullable), `budget_minor` (nullable, informational only), `is_active` (default true), `all_affiliates` (default true), `created_by` (nullable, set null on delete), timestamps.
+- Index: `(is_active, starts_at)`.
+- Invariants: campaigns are never deleted through the app; the foreign keys from links, coupons, attributions and rules restrict deletion. When `all_affiliates` is false, only the affiliates in `campaign_affiliate` take part.
+
+### `campaign_affiliate`, `campaign_product`
+- `campaign_affiliate`: `campaign_id`, `affiliate_profile_id` (both cascade on delete). Primary key `(campaign_id, affiliate_profile_id)`.
+- `campaign_product`: `campaign_id`, `product_id` (both cascade on delete). Primary key `(campaign_id, product_id)`. A campaign with no rows here covers every product.
+
+## Marketing materials (1.1.0)
+
+### `marketing_assets`
+Files and post text staff share with affiliates.
+- Columns: `public_id` (unique), `title` (120), `description` (2000, nullable), `kind` (16: `image`, `video`, `document`, `archive` or `text`), `caption` (text, nullable; the whole material for `text`), `path` (nullable; generated name under `marketing/` on the private disk), `original_name`, `mime` (detected from the content), `size_bytes`, `campaign_id` and `product_id` (nullable, set null on delete), `is_active` (default true), `download_count` (default 0), `created_by`, timestamps.
+- Index: `(is_active, created_at)`.
+- Invariants: the file is never replaced, only deleted with its row. `path` is never sent in API responses.
+
+## Fraud (1.1.0)
+
+### `fraud_flags`
+Signals for staff review. A flag never changes money by itself.
+- Columns: `public_id` (unique), `affiliate_profile_id` (restrict), `signal` (32; `FraudSignal`: `high_conversion`, `clicks_without_orders`, `refund_rate`, `rapid_earnings`, `large_payout`, `payout_after_detail_change`), `severity` (`low`, `medium` or `high`), `details` (JSON: what was measured and the threshold), `subject_type` and `subject_id` (nullable; `payout` and the payout's public id), `dedupe_key` (120, **unique**), `status` (`FraudFlagStatus`: `open`, `dismissed`, `confirmed`; default `open`), `detected_at`, `reviewed_by` (nullable, set null on delete), `reviewed_at`, `review_note` (1000), timestamps.
+- Indexes: `(status, detected_at)`, `(affiliate_profile_id, status)`.
+- Invariants: the unique `dedupe_key` (signal, affiliate and day or payout) stops a repeated run from raising the same flag twice. A flag is reviewed once.
+
 ## Uniqueness and idempotency at a glance
 
 | Guarantee | Enforced by |
@@ -252,6 +290,7 @@ One commission for each order line and affiliate.
 | A provider callback is stored once | `webhook_events (provider, event_key)` unique |
 | One open payout per affiliate | `payouts.open_affiliate_profile_id` unique, set only while open |
 | A transfer reference settles one payout | `payouts (method_type, payment_reference)` unique |
+| A fraud signal is raised once per affiliate and day, or per payout | `fraud_flags.dedupe_key` unique |
 
 Money columns are integers, never floats, and every money row carries its own `currency`. A `fixed` commission rule whose currency differs from the product's earns nothing on that product.
 

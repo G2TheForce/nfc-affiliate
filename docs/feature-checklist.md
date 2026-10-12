@@ -1,6 +1,6 @@
 # Feature checklist
 
-Checked against the master prompt, sections 5 to 21 and the section 29 deliverables. Date: 2026-10-12, branch `phase-9-release`, release 1.0.0.
+Checked against the master prompt, sections 5 to 21 and the section 29 deliverables. First checked 2026-10-12 for release 1.0.0 (branch `phase-9-release`). Updated for release 1.1.0 (branch `phase-10-gaps`): the rows for campaigns, marketing materials, fraud signals, affiliate notices and the public programme page.
 
 Each status was checked in code, routes (`php artisan route:list`), migrations and tests, not taken from the docs. Test names are in the form `File::test_name` and live under `tests/`.
 
@@ -16,23 +16,24 @@ Status meanings:
 
 | Status | Count |
 |---|---|
-| Done | 253 |
-| Partial | 32 |
-| Not built | 24 |
+| Done | 276 |
+| Partial | 27 |
+| Not built | 6 |
 | Not built (optional) | 10 |
 | Needs external setup | 6 |
 | **Total** | **325** |
 
 The most important gaps:
 
-1. **Campaigns are not a real feature.** There is no campaigns table, no campaign screen and no campaign commission override. Coupons stand in for campaigns in reports (ADR 0010).
-2. **Marketing assets are not built.** There is no table, upload, list or download, so affiliates have no promotional material in the app.
-3. **Fraud detection is thin.** Self-referrals, duplicate events, coupon limits and possible duplicate accounts are handled. There are no fraud flags, no review queue, no risk thresholds and no detectors for unusual ratios, rapid earnings, refund patterns or abnormal payouts.
-4. **No public affiliate landing page.** The programme is explained only on `/account/affiliate`, after sign-in. There is no public page with eligibility, terms, payout rules and FAQ.
-5. **Staff and settings are managed from the console and `.env`.** There is no screen for staff accounts, roles or programme settings (payout minimum, holding period and so on).
-6. **Some notifications are missing.** There are none for a new attributed order, a new commission or a commission reversal.
-7. The release-readiness assessment is in [release-readiness.md](release-readiness.md).
-8. **Going live needs outside setup:** eSewa and Khalti production keys and one live sandbox run each, a mail provider, legal and tax review, and real commission rules.
+1. **Staff and settings are managed from the console and `.env`.** There is no screen for staff accounts, roles or programme settings (payout minimum, holding period, fraud thresholds and so on).
+2. **Campaigns have no landing pages,** and their budget is tracked but not enforced. Reports and dashboards still group "campaigns" by coupon (ADR 0010).
+3. **Some fraud patterns raise no flag:** invalid referral attempts and repeated failed sign-ins are rate-limited but not flagged. Flags never block anything.
+4. **Some notifications are missing:** a notice when an unpaid referred order is placed, a payout "processing" step, and new sign-ins.
+5. **Smaller gaps:** customers cannot edit their profile, there are no product images, categories cannot be edited, there is no personal-data deletion tool, and no accessibility audit has been done.
+6. The release-readiness assessment is in [release-readiness.md](release-readiness.md).
+7. **Going live needs outside setup:** eSewa and Khalti production keys and one live sandbox run each, a mail provider, legal and tax review, and real commission rules.
+
+Built in 1.1.0 (Phase 10): campaigns with their own commission rate, a marketing materials library, fraud flags with a review queue and configurable thresholds, affiliate notices for paid orders and reversed commission, a password-changed email, and the public programme page.
 
 ---
 
@@ -43,7 +44,7 @@ The most important gaps:
 | Six roles (Super Admin, Affiliate Manager, Finance Manager, Support, Affiliate, Customer) | Done | `app/Enums/Role.php`, `app/Support/Authorization/PermissionMatrix.php`, `RolesAndPermissionsSeeder` |
 | Permissions enforced on the server | Done | `permission:` middleware on every staff route (`routes/api.php`); `RolePermissionTest::test_admin_routes_enforce_permissions_on_the_server`. Uses spatie permissions and Gate checks; there are no Policy classes. |
 | Super Admin: settings, staff accounts, roles, integrations | Partial | Staff accounts only via `affiliate:create-admin`, `affiliate:create-staff` and `affiliate:set-user-status` (`StaffAccountCommandsTest`). No staff screen. Roles are fixed in code. Settings and integrations live in `.env` and `config/`. |
-| Affiliate Manager: applications, members, rules, payout review | Partial | Applications, members and rules are done. Marketing assets are not built. Payout review is held by Finance only (`docs/permissions-matrix.md`). |
+| Affiliate Manager: applications, members, rules, payout review | Partial | Applications, members, rules, campaigns and marketing materials are done. Payout review is held by Finance only (`docs/permissions-matrix.md`). |
 | Finance Manager without system config access | Done | `RolePermissionTest::test_finance_permissions_do_not_include_system_configuration` |
 | Support: view orders and attribution, no money actions | Done | `RolePermissionTest::test_support_cannot_touch_money`, `AdminStoreTest::test_support_sees_masked_orders_with_attribution_but_cannot_change_them` |
 | Affiliate Member: own profile, links, earnings, payouts | Done | `/api/v1/affiliate/*` routes; `AffiliateAuthorizationTest::test_affiliate_endpoints_never_accept_another_members_id` |
@@ -72,7 +73,7 @@ The most important gaps:
 | Status, approval date, commission plan | Done | `affiliate_profiles.status`, `approved_at`, `commission_plan_id`; `POST /admin/affiliates/{id}/plan` |
 | Payment preferences | Done | `PUT /api/v1/affiliate/payout-method`, `affiliate_payout_methods` |
 | Referral statistics and earnings summary | Done | `/affiliate/referrals/summary`, `/affiliate/earnings/summary`, `/affiliate/dashboard` |
-| Marketing asset access | Not built | No marketing assets anywhere (no table, route or page) |
+| Marketing asset access | Done | `/account/affiliate/marketing`, `GET /affiliate/marketing-assets`; `MarketingAssetTest::test_staff_upload_an_image_and_affiliates_download_it_under_a_safe_name` |
 | Terms acceptance history | Done | `affiliate_terms_acceptances`; `SelfServiceTest::test_member_must_accept_new_terms_and_acceptance_is_recorded_once` |
 | No internal IDs in public referral URLs | Done | `/ref/{code}` uses the random 8-character code or slug (`ReferralIdentifierGenerator`) |
 | Policy: duplicate registrations, multiple accounts | Done | Unique email; one profile per user; possible duplicates flagged (`DuplicateSignals`); `ApplicationTest::test_duplicate_application_is_rejected`, `ReviewWorkflowTest::test_detail_flags_possible_duplicates` |
@@ -87,7 +88,7 @@ The most important gaps:
 |---|---|---|
 | Permanent referral link and unique code | Done | `/ref/{code}`; `ReferralLinksTest::test_approved_affiliate_sees_their_main_link_and_creates_tracking_links` |
 | Product-specific links | Done | `affiliate_links.product_id`; `ReferralRedirectTest::test_tracking_link_for_a_product_redirects_to_that_product` |
-| Campaign-specific tracking links | Partial | Affiliates create named links with UTM tags (`/ref/{code}/{link}`). There is no admin campaign to tie them to. |
+| Campaign-specific tracking links | Done | `affiliate_links.campaign_id`, limited to running campaigns open to the affiliate; `CampaignTest::test_affiliate_sees_open_campaigns_and_can_link_only_to_those`, `test_campaign_rate_applies_to_orders_through_a_campaign_link_and_beats_the_affiliate_override` |
 | Social campaign identifiers | Done | UTM tags and sub-id on clicks; `ReferralRedirectTest::test_tracking_tags_are_sanitised_and_truncated` |
 | Uses configured domain | Done | Links built from `APP_URL`; no hardcoded domain |
 | Validate code and affiliate eligibility | Done | `ReferralRedirectTest::test_unknown_or_ineligible_affiliates_leave_no_click_and_no_cookie` |
@@ -100,7 +101,7 @@ The most important gaps:
 | Configurable window (default 30 days) | Done | `config/affiliate.php` `attribution.window_days`; `CheckoutAttributionTest::test_click_outside_the_attribution_window_is_ignored` |
 | Referral code attribution | Done | `CheckoutAttributionTest::test_referral_code_typed_at_checkout_attributes_the_order` |
 | Manual attribution with reason | Done | `POST /admin/orders/{order}/attribution`; `AdminStoreTest::test_manual_attribution_requires_a_reason_and_is_audited` |
-| Campaign-specific attribution rules | Not built (optional) | No campaigns |
+| Campaign-specific attribution rules | Not built (optional) | Campaigns use the normal attribution policy and window; there are no per-campaign rules |
 | One documented default; code vs click conflict rule | Done | ADR 0002 and 0007: last click, coupon overrides click; `CheckoutAttributionTest::test_affiliate_coupon_overrides_an_earlier_click_from_another_affiliate` |
 | Privacy: minimise data, retention | Done | `affiliate:prune-referral-data` (90 days for hashes, 395 days for clicks); `PruneReferralDataTest` |
 | Consent and privacy choices | Partial | No cookie consent banner. ADR 0007 leaves this to legal review. |
@@ -120,9 +121,9 @@ The most important gaps:
 | Shipping requirements per product | Not built | Only a flat delivery charge (`STORE_SHIPPING_FLAT_MINOR`) |
 | Commission settings per product | Done | Product-scope commission rules (`CommissionRuleScope::Product`) |
 | No duplicate product records | Done | No outside store exists, so this app owns the catalog (Phase 0 plan section 1) |
-| Campaigns: name, dates, products, affiliates, overrides, landing pages, budget | Not built | No `campaigns` table, routes or screens. Coupons stand in (ADR 0010). |
+| Campaigns: name, dates, products, affiliates, overrides, landing pages, budget | Partial | `campaigns`, `campaign_affiliate`, `campaign_product`; `/admin/campaigns`; campaign-scope commission rules; `CampaignTest::test_staff_create_a_campaign_with_products_and_affiliates_and_see_its_results`. No campaign landing pages (a campaign link can open a product page). The budget is shown against commission but never stops it. |
 | Discount codes | Done | `coupons` with dates, products, limits (see section 11) |
-| Overlapping rule validation and precedence | Done | For commission rules: `RulePrecedenceTest::test_overlapping_rules_for_the_same_target_are_refused`. Not applicable to campaigns. |
+| Overlapping rule validation and precedence | Done | For commission rules: `RulePrecedenceTest::test_overlapping_rules_for_the_same_target_are_refused`. Campaign-scope rules go through the same check (`CommissionRuleService`). |
 | Inactive or expired promotions give no benefit | Done | Coupon dates and active flag checked; `CouponCheckoutTest::test_invalid_coupons_are_rejected_with_a_reason` |
 
 ## 9. Commission engine
@@ -134,11 +135,11 @@ The most important gaps:
 | Product-specific rates | Done | `RulePrecedenceTest::test_each_level_beats_the_ones_below_it` |
 | Category-specific rates | Done | same test |
 | Affiliate-specific overrides | Done | same test |
-| Campaign-specific overrides | Not built | Precedence step 2 is missing (ADR 0008) |
+| Campaign-specific overrides | Done | `RuleResolver` step 2 (ADR 0008); `CampaignTest::test_campaign_rate_applies_to_orders_through_a_campaign_link_and_beats_the_affiliate_override`, `test_campaign_rate_covers_only_its_products_and_exclusions_still_win` |
 | Tiered commissions | Not built (optional) | ADR 0008 |
 | Recurring commissions | Not built (optional) | No subscription products |
 | Multi-level commissions | Not built (optional) | Disabled; `multi_level_enabled => false` in `config/affiliate.php` is not read by any code |
-| Deterministic precedence | Done | `RuleResolver`: exclusion, affiliate, product, category, plan, global (ADR 0008) |
+| Deterministic precedence | Done | `RuleResolver`: exclusion, campaign, affiliate, product, category, plan, global (ADR 0008) |
 | Exclusions always win | Done | `RulePrecedenceTest::test_product_exclusion_beats_an_affiliate_override`, `test_category_exclusion_beats_a_product_rate` |
 | Overlapping rules refused | Done | `RulePrecedenceTest::test_overlapping_rules_for_the_same_target_are_refused` |
 | Discounts allocated to lines | Done | Largest remainder; `DiscountAllocationTest`; `PaymentCommissionTest::test_commission_base_is_after_the_coupon_discount` |
@@ -177,7 +178,7 @@ The most important gaps:
 | Retries and out-of-order events | Done | `payments:recheck` every 5 minutes; `OnlinePaymentTest::test_a_late_failure_does_not_undo_a_payment_and_abandoned_attempts_expire` |
 | eSewa and Khalti working in production | Needs external setup | Merchant keys needed; live sandboxes were never reached from the build environment (`docs/phase-7-report.md`) |
 | Attribution record fields (order, affiliate, source, time, policy, window) | Done | `order_attributions` table |
-| Campaign reference on attribution | Partial | `coupon_id` only; no campaigns |
+| Campaign reference on attribution | Done | `order_attributions.campaign_id`, set by `CheckoutService::campaignFor`; `CampaignTest::test_campaign_coupon_brings_the_campaign_rate`, `test_campaign_does_not_apply_to_affiliates_outside_it_or_after_it_ends` |
 | Commission rule snapshot, amount, status per order | Done | `commissions` per order line |
 | Partial and full refunds reverse only the right amount | Done | `RefundReversalTest::test_partial_refund_reverses_only_the_refunded_share`, `test_full_refund_reverses_the_whole_commission` |
 | Same refund never reversed twice | Done | `RefundReversalTest::test_same_refund_reference_is_not_reversed_twice`; `ConcurrencyTest::test_parallel_full_refunds_never_refund_more_than_was_paid` |
@@ -211,7 +212,7 @@ The most important gaps:
 | Product and campaign performance | Done | `products` and `campaigns` (coupons) on the dashboard |
 | Date filters, pagination, empty, loading and error states | Done | `reporting/FilterBar.tsx`, `DataTable.tsx`, `useApiData.ts`; `DashboardTest::test_long_ranges_use_months_and_ranges_are_limited` |
 | Copy referral link and code; generate product links | Done | `ReferralLinksPage.tsx`; `POST /affiliate/links` |
-| Browse and download marketing materials | Not built | No marketing assets |
+| Browse and download marketing materials | Done | `/account/affiliate/marketing`; `MarketingAssetTest::test_staff_upload_an_image_and_affiliates_download_it_under_a_safe_name`, `test_hidden_campaign_and_inactive_materials_are_not_shown_to_affiliates` |
 | View eligible products and commission rules | Done | `GET /affiliate/earnings/rates`; `EarningsApiTest::test_rates_show_what_each_product_earns` |
 | Referred orders with masked customer data | Done | `ReferralReportTest::test_affiliate_order_list_shows_no_customer_details` |
 | Export reports | Done | `/affiliate/reports/{key}/export`; `ReportsTest::test_affiliate_exports_only_their_own_masked_data` |
@@ -265,20 +266,20 @@ The most important gaps:
 | Self-referrals | Done | Blocked at checkout and recorded as `attribution_status = blocked`; coupons too (`CouponCheckoutTest::test_affiliate_cannot_use_their_own_coupon`) |
 | Duplicate order attribution | Done | Unique `order_attributions.order_id` |
 | Repeated payment events | Done | `webhook_events.times_received`; payment needs-review queue (ADR 0011) |
-| Suspicious refund patterns | Not built | No detector |
-| Unusual click-to-order ratios | Not built | No detector |
+| Suspicious refund patterns | Done | `refund_rate` flag; `FraudDetectionTest::test_high_refund_rate_is_flagged` |
+| Unusual click-to-order ratios | Done | `high_conversion` and `clicks_without_orders` flags; `FraudDetectionTest::test_conversion_far_above_normal_is_flagged_once_and_reviewers_are_told`, `test_normal_conversion_and_coupon_orders_are_not_flagged`, `test_sudden_earnings_and_clicks_without_orders_are_flagged` |
 | Excessive invalid referral attempts | Partial | Floods are not recorded (30 per minute per IP); invalid codes are not counted or flagged |
 | Coupon abuse | Done | Limits under a row lock; own-coupon block |
 | Duplicate affiliate accounts | Done | `DuplicateSignals` (same phone or website host) shown to reviewers |
-| Suspicious payout-detail changes | Partial | Password, security email and audit entry; no flag or cooling-off period |
-| Rapid commission accumulation | Not built | No detector |
+| Suspicious payout-detail changes | Done | Password, security email and audit entry, plus a `payout_after_detail_change` flag on a payout request within 7 days of a change. The payout is flagged, not delayed. `FraudDetectionTest::test_large_payout_and_payout_after_detail_change_are_flagged_and_shown_to_finance`, `test_first_payout_details_are_not_a_change` |
+| Rapid commission accumulation | Done | `rapid_earnings` flag; `FraudDetectionTest::test_sudden_earnings_and_clicks_without_orders_are_flagged` |
 | Repeated failed authentication | Partial | Rate limits and a 30-per-hour account lockout, failures audited (`InputHardeningTest::test_one_account_is_locked_after_many_failures_even_from_many_addresses`); no alert or flag |
-| Abnormal payout requests | Not built | No detector beyond eligibility rules |
-| Configurable risk thresholds | Not built | No thresholds in config |
-| Review queue | Partial | Commission holds and the payment needs-review queue exist. There is no `fraud_flags` table or fraud queue. |
+| Abnormal payout requests | Done | `large_payout` flag; `FraudDetectionTest::test_large_payout_and_payout_after_detail_change_are_flagged_and_shown_to_finance` |
+| Configurable risk thresholds | Done | `config/affiliate.php` `fraud` section, set with `AFFILIATE_FRAUD_*` in `.env` (no screen) |
+| Review queue | Done | `fraud_flags`, `/admin/fraud`, `GET /admin/fraud-flags`; open flags shown on the payout screen; `FraudDetectionTest::test_reviewer_dismisses_or_confirms_with_a_note_and_only_fraud_reviewers_see_the_queue` |
 | Hold commissions pending review | Done | `/admin/commissions/{id}/hold`; `LifecycleTest::test_held_commission_does_not_mature_until_the_hold_is_released` |
-| Reviewers document findings | Partial | Hold and void need a reason; staff notes on affiliates. No per-flag review record. |
-| Fraud data private | Done | `fraud.review` permission; `LifecycleTest::test_finance_and_support_cannot_hold_or_void` |
+| Reviewers document findings | Done | Each flag needs an outcome and a note, audited as `fraud_flag.reviewed`; hold and void need a reason. `FraudDetectionTest::test_reviewer_dismisses_or_confirms_with_a_note_and_only_fraud_reviewers_see_the_queue` |
+| Fraud data private | Done | `fraud.review` permission; `LifecycleTest::test_finance_and_support_cannot_hold_or_void`, `FraudDetectionTest::test_reviewer_dismisses_or_confirms_with_a_note_and_only_fraud_reviewers_see_the_queue` |
 | Rate-limit public referral endpoints | Done | `ReferralRedirectTest::test_click_floods_from_one_ip_still_redirect_but_are_not_recorded` |
 | Not IP-only | Done | IPs stored only as keyed hashes; no IP-based blocking |
 | Fraud review report | Done | `FraudReview` report; `ReportsTest::test_fraud_review_lists_holds_and_blocked_attributions` |
@@ -290,15 +291,15 @@ The most important gaps:
 | Identity tables (users, roles, permissions, profiles, histories, terms) | Done | Migrations `2026_10_09_*`, `2026_10_10_100000_create_affiliate_tables.php` |
 | Separate `affiliate_applications` table | Done | Merged into `affiliate_profiles` (status and `applied_at`), with history in `affiliate_status_histories` |
 | Referral tables (links, clicks, attributions) | Done | `affiliate_links`, `referral_clicks`, `order_attributions`, `referral_events` |
-| Campaign tables | Not built | No `campaigns`, `campaign_affiliates`, `campaign_products` |
+| Campaign tables | Done | `campaigns`, `campaign_affiliate`, `campaign_product`, and `campaign_id` on links, coupons, attributions and rules (`2026_10_17_100000_create_campaign_tables.php`) |
 | Coupons | Done | `coupons`, `coupon_product`, `coupon_redemptions` |
-| Marketing assets table | Not built | None |
+| Marketing assets table | Done | `marketing_assets` (`2026_10_18_100000_create_marketing_assets_table.php`) |
 | Store tables, payments, refunds, webhook events | Done | `products`, `orders`, `order_items`, `order_payments`, `payment_attempts`, `refunds`, `refund_items`, `webhook_events`, `order_disputes` |
 | Commission tables (rules, versions, commissions, adjustments, ledger) | Done | `commission_rules` (with `version`), `commission_plans`, `commissions`, `commission_adjustments`, `commission_ledger_entries` |
 | Payout tables | Done | `affiliate_payout_methods`, `payouts`, `payout_items`. Transfer reference is on `payouts` (no separate `payout_transactions`). |
 | Reconciliation records | Done | `reconciliation_runs` |
 | Notifications, audit logs | Done | `notifications`, `audit_logs` |
-| `fraud_flags`, `fraud_reviews` | Not built | None |
+| `fraud_flags`, `fraud_reviews` | Done | `fraud_flags` (`2026_10_16_100000_create_fraud_flags_table.php`). The review (outcome, reviewer, time, note) is stored on the flag; there is no separate `fraud_reviews` table. |
 | `system_settings`, `integration_settings` | Not built | Settings live in `config/` and `.env` |
 | Job monitoring | Done | `jobs`, `failed_jobs`; failed jobs pruned after 30 days |
 | Keys, foreign keys, unique constraints, indexes | Done | Migrations; unique keys back the idempotency rules (e.g. `commission_ledger_entries.idempotency_key`) |
@@ -316,7 +317,7 @@ The most important gaps:
 | Consistent JSON, validation errors, pagination, status codes | Done | `HardeningTest::test_api_404_is_json`, `LoginTest::test_guest_gets_json_401` |
 | Auth endpoints (register, login, logout, forgot, reset, me, verify) | Done | `/api/v1/auth/*`. Verify is a signed GET link, not POST (ADR 0005). |
 | Affiliate: applications, profile, dashboard, links, commissions, orders, payouts, reports | Done | `/affiliate/applications`, `/profile`, `/dashboard`, `/links`, `/earnings/commissions`, `/referrals/orders`, `/payouts`, `/reports` (paths differ slightly from the spec examples) |
-| Affiliate: campaigns, marketing assets | Not built | No `/affiliate/campaigns` or `/affiliate/marketing-assets` |
+| Affiliate: campaigns, marketing assets | Done | `GET /affiliate/campaigns`, `GET /affiliate/marketing-assets`, `GET /affiliate/marketing-assets/{asset}/file` |
 | `GET /ref/{code}` | Done | `ReferralRedirectController` |
 | `POST /api/v1/referrals/track` | Not built (optional) | A spec example only; `/ref` and `referral_code` at checkout cover tracking |
 | Admin: dashboard, affiliates, approve, reject, suspend, commissions, adjust, payouts, approve, mark paid, reports, audit logs | Done | Matching `/admin/*` routes; adjustments are `/admin/adjustments` |
@@ -335,14 +336,14 @@ The most important gaps:
 | Auth rate limiting, login abuse protection | Done | `LoginTest::test_login_is_rate_limited`, `InputHardeningTest::test_one_account_is_locked_after_many_failures_even_from_many_addresses` |
 | Server-side authorization, IDOR protection | Done | Section 5 tests; ULIDs in URLs; `EarningsApiTest::test_affiliate_never_sees_another_affiliates_earnings` |
 | SQL injection, XSS | Done | Query builder bindings; React escaping (`docs/security-review.md`) |
-| Safe file uploads, secure downloads | Done | No upload endpoints exist. Downloads are exports behind a permission, audited. |
+| Safe file uploads, secure downloads | Done | Marketing uploads only: type detected from the content (no SVG), size limit, generated names on the private disk, served through the API with `nosniff` and a sandbox CSP; `MarketingAssetTest::test_dangerous_or_unknown_files_are_refused_whatever_their_name`. Report exports are behind a permission and audited. |
 | Mass assignment | Done | `RegistrationTest::test_registration_ignores_privileged_fields`, `CouponCheckoutTest::test_client_cannot_set_prices_totals_or_status` |
 | Open redirects | Done | `ReferralRedirectTest::test_destinations_outside_the_allow_list_go_home` |
 | Request validation | Done | Form Requests; `InputHardeningTest::test_array_values_where_strings_are_expected_are_refused_cleanly` |
 | Security headers, HTTPS in production | Done | `SecurityHeaders`; `HardeningTest::test_security_headers_are_sent` |
 | Secret management | Done | `.env.example` has empty or placeholder values |
 | Webhook signatures, replay, idempotency | Done | Section 10 |
-| Audit logging | Done | `AuditLogTest`; about 50 actions |
+| Audit logging | Done | `AuditLogTest`; about 60 actions |
 | Dependency checks | Done | `composer audit`, `npm audit` in CI (`docs/security-review.md`) |
 | Secure error responses | Done | `HardeningTest::test_server_errors_do_not_leak_details_when_debug_is_off` |
 | Backups and recovery | Done | `scripts/backup-db.sh`, `scripts/restore-db.sh`, `docs/backup-and-restore.md` (restore drill done) |
@@ -358,14 +359,14 @@ The most important gaps:
 | Application received | Done | `ApplicationReceived`, plus `NewApplicationForReview` to staff |
 | Approval or rejection | Done | `AffiliateStatusChanged`, with optional approval message |
 | Suspension or reinstatement | Done | `AffiliateStatusChanged` on every transition |
-| New attributed order | Not built | No notification class |
-| Commission created | Not built | No notification class |
+| New attributed order | Partial | `ReferredOrderPaid` tells the affiliate when a referred order is paid, with the masked order number; there is no notice when an unpaid order is placed. `AffiliateNoticesTest::test_order_with_no_matching_rule_still_tells_the_affiliate_without_an_amount` |
+| Commission created | Done | `ReferredOrderPaid` with the amount and the date it stops being pending; `AffiliateNoticesTest::test_affiliate_is_told_when_a_referred_order_is_paid_with_the_commission_and_no_customer_details` |
 | Commission approved | Partial | `CommissionsAvailable` sent once per maturation run when commission becomes available; no separate "approved" notice |
-| Commission reversed | Not built | No notification class |
+| Commission reversed | Done | `CommissionReversed` after a refund or a staff void, never with the staff reason; `AffiliateNoticesTest::test_refund_tells_the_affiliate_how_much_commission_was_reversed`, `test_voiding_tells_the_affiliate_but_never_shows_the_staff_reason` |
 | Payout requested, approved, rejected, completed | Done | `PayoutStatusChanged`, `NewPayoutRequest` |
 | Payout processing | Partial | No processing state, so no notice |
-| Suspicious activity review | Partial | Staff alerts for payments needing review (`PaymentNeedsReview`) and reconciliation drift (`DriftNotificationTest`); no fraud alerts |
-| Account security events | Partial | Payout detail change email (`PayoutMethodChanged`); no notice for password change or new sign-in |
+| Suspicious activity review | Done | `FraudFlagsRaised` to fraud reviewers (and payout reviewers for payout flags), plus alerts for payments needing review (`PaymentNeedsReview`) and reconciliation drift (`DriftNotificationTest`); `FraudDetectionTest::test_conversion_far_above_normal_is_flagged_once_and_reviewers_are_told` |
+| Account security events | Partial | Payout detail change email (`PayoutMethodChanged`) and a password-changed email after a reset (`PasswordChanged`; `PasswordResetTest::test_password_can_be_reset_with_valid_token_and_tokens_are_revoked`); no notice for a new sign-in |
 | Queued email | Done | All notifications implement `ShouldQueue` |
 | In-app notifications | Done | `database` channel; `/api/v1/notifications`; `SelfServiceTest::test_notifications_are_private_to_their_owner` |
 | Separate from accounting transactions | Done | Sent `afterCommit` |
@@ -406,14 +407,14 @@ The most important gaps:
 | Loading, empty states, validation messages | Done | `Spinner`, `useFormErrors`, `Alert` |
 | Accessible forms, keyboard use, contrast | Partial | Labelled fields and some ARIA attributes; no accessibility audit has been done |
 | Mobile-friendly navigation | Done | `AppLayout.tsx` |
-| Layout: public affiliate landing page | Not built | No public route; the programme intro is on `/account/affiliate` after sign-in |
+| Layout: public affiliate landing page | Done | `/affiliates` (`AffiliateProgrammePage.tsx`), "Earn with us" in the store menu |
 | Layout: registration and login | Done | `AuthLayout.tsx`, `/register`, `/login` |
 | Layout: affiliate dashboard | Done | `/account/affiliate/dashboard` |
 | Layout: admin dashboard | Done | `/admin` |
 | Layout: finance and payouts | Done | `/admin/finance`, `/admin/payouts` |
 | Layout: support tools | Partial | Support uses the staff area with fewer menu items; no support-specific screens |
 | No admin navigation for affiliates | Done | Staff area needs `admin.access`; menu items filtered by permission |
-| Landing page: how it works, eligibility, terms, payouts, FAQ | Not built | No such page |
+| Landing page: how it works, eligibility, terms, payouts, FAQ | Done | `GET /store/affiliate-programme` from live settings and the current terms; `AffiliateProgrammePageTest::test_public_programme_facts_come_from_live_settings_without_a_rate_when_none_is_set`, `test_shows_the_global_rate_and_current_terms_but_not_plan_or_affiliate_rates` |
 | No misleading earning claims | Done | `AffiliatePage.tsx`: "there are no guaranteed earnings" |
 
 ---
@@ -426,21 +427,21 @@ The most important gaps:
 | 2 | Business requirements and assumptions | Done | `docs/requirements-and-assumptions.md` |
 | 3 | Feature checklist | Done | This file |
 | 4 | Database schema and ER diagram | Done | `docs/database-schema.md` (Mermaid) |
-| 5 | Migrations and seeders | Done | `database/migrations` (14 files), `RolesAndPermissionsSeeder`, `DevelopmentSeeder` (refuses production); `CreateAdminCommandTest::test_production_seeder_creates_no_users` |
-| 6 | Complete backend | Partial | Campaigns, marketing assets, fraud flags and a settings store are missing |
-| 7 | Complete responsive frontend | Partial | No public landing page, no staff or settings screens, no marketing assets |
+| 5 | Migrations and seeders | Done | `database/migrations` (17 files), `RolesAndPermissionsSeeder`, `DevelopmentSeeder` (refuses production); `CreateAdminCommandTest::test_production_seeder_creates_no_users` |
+| 6 | Complete backend | Partial | A settings store is missing; see sections 5 and 14 |
+| 7 | Complete responsive frontend | Partial | No staff or settings screens |
 | 8 | API specification | Done | `docs/api/openapi.yaml` (one route missing, see section 17) |
 | 9 | Authentication and authorization | Done | Sections 5 and 18 |
 | 10 | Registration and approval workflow | Done | Section 6 |
 | 11 | Referral tracking and attribution | Done | Section 7 |
-| 12 | Commission engine and ledger | Partial | Campaign overrides missing; everything else done (section 9) |
+| 12 | Commission engine and ledger | Partial | Tax treatment and bulk or replacement orders are open questions (section 9) |
 | 13 | Order and refund integration | Done | Section 10 (no refund-request step) |
 | 14 | Payout management | Done | Section 14 (manual payouts by design) |
 | 15 | Admin dashboard | Done | Section 13 |
-| 16 | Affiliate dashboard | Partial | Marketing materials missing (section 12) |
-| 17 | Notification system | Partial | Order and commission notices missing (section 19) |
+| 16 | Affiliate dashboard | Done | Section 12 |
+| 17 | Notification system | Partial | No notice for placed (unpaid) orders, payout processing or new sign-ins (section 19) |
 | 18 | Reports and exports | Done | Section 20 |
-| 19 | Automated tests | Done | 291 `test_` methods (some data-driven) including 6 MySQL concurrency tests, plus load scripts in `tests/Load`. `docs/phase-9-report.md` records 313 passed on SQLite and MySQL. 74 tests in 6 key classes re-run on SQLite for this checklist: all passed. |
+| 19 | Automated tests | Done | 317 `test_` methods in 1.1.0 (291 in 1.0.0; some data-driven) including 6 MySQL concurrency tests, plus load scripts in `tests/Load`. `docs/phase-9-report.md` records 313 passed on SQLite and MySQL for 1.0.0; 1.1.0 results are in `docs/phase-10-report.md`. |
 | 20 | Security review checklist | Done | `docs/security-review.md` |
 | 21 | Performance considerations | Done | `docs/load-and-concurrency.md` |
 | 22 | Environment example file | Done | `.env.example` (placeholders only) |
@@ -451,4 +452,4 @@ The most important gaps:
 | 27 | Affiliate user guide | Done | `docs/affiliate-guide.md` |
 | 28 | API integration guide | Done | `docs/api-guide.md` |
 | 29 | Known limitations and outstanding integrations | Done | `docs/known-limitations.md` |
-| 30 | Final release-readiness report | Done | [release-readiness.md](release-readiness.md), [phase-9-report.md](phase-9-report.md) |
+| 30 | Final release-readiness report | Done | [release-readiness.md](release-readiness.md), [phase-9-report.md](phase-9-report.md), [phase-10-report.md](phase-10-report.md) |

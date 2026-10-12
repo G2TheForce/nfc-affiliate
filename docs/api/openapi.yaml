@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0
+  version: 1.1.0
   description: |
-    Release 1.0.0 (Phases 1-9). Money is integer minor units (paisa) with a currency code.
+    Release 1.1.0 (Phases 1-10). 1.1.0 adds campaigns, marketing materials, fraud flags and the public affiliate programme facts. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
     All errors are JSON. Validation errors return 422 with `message` and `errors`.
@@ -130,6 +130,7 @@ components:
         slug: { type: string }
         url: { type: string, example: 'https://store.example/ref/AB23CD45/insta-bio' }
         product: { type: [object, 'null'] }
+        campaign: { type: [object, 'null'], description: 'Campaign the link was made for: { id, name }', properties: { id: { type: string }, name: { type: string } } }
         utm_source: { type: [string, 'null'] }
         utm_medium: { type: [string, 'null'] }
         utm_campaign: { type: [string, 'null'] }
@@ -225,8 +226,8 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        scope: { type: string, enum: [global, plan, category, product, affiliate] }
-        target: { type: [object, 'null'], description: 'id is the plan, product or affiliate public id, or the category slug' }
+        scope: { type: string, enum: [global, plan, category, product, affiliate, campaign] }
+        target: { type: [object, 'null'], description: 'id is the plan, product, affiliate or campaign public id, or the category slug' }
         kind: { type: string, enum: [percent, fixed, exclude] }
         rate_bp: { type: [integer, 'null'] }
         fixed_minor: { type: [integer, 'null'] }
@@ -281,6 +282,108 @@ components:
         next_check_at: { type: [string, 'null'], format: date-time }
         completed_at: { type: [string, 'null'], format: date-time }
         created_at: { type: string, format: date-time }
+    Campaign:
+      type: object
+      description: 'Staff view of a campaign. Campaigns are never deleted; switch them off (is_active false) or end them (ends_at).'
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: [string, 'null'], format: date-time }
+        state: { type: string, enum: [running, upcoming, ended] }
+        is_active: { type: boolean }
+        budget_minor: { type: [integer, 'null'], description: Informational only; never limits commission }
+        currency: { type: string }
+        all_affiliates: { type: boolean }
+        affiliates: { type: array, items: { type: object, properties: { id: { type: string }, display_name: { type: string }, referral_code: { type: [string, 'null'] } } } }
+        products: { type: array, description: Empty means every product, items: { type: object, properties: { id: { type: string }, name: { type: string } } } }
+        rule:
+          type: [object, 'null']
+          description: The campaign-scope commission rule in force now
+          properties: { id: { type: string }, name: { type: string }, kind: { type: string, enum: [percent, fixed] }, rate_bp: { type: [integer, 'null'] }, fixed_minor: { type: [integer, 'null'] } }
+        stats:
+          type: object
+          description: Paid and partially refunded orders that came through the campaign, their product sales after discounts, and net commission
+          properties: { orders: { type: integer }, sales_minor: { type: integer }, commission_minor: { type: integer } }
+        created_at: { type: [string, 'null'], format: date-time }
+    CampaignInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: [string, 'null'], format: date-time, description: Must be after starts_at }
+        budget_minor: { type: [integer, 'null'], minimum: 1 }
+        is_active: { type: boolean }
+        all_affiliates: { type: boolean, description: 'When false, affiliate_ids must hold at least one affiliate' }
+        affiliate_ids: { type: array, maxItems: 500, items: { type: string } }
+        product_ids: { type: array, maxItems: 200, items: { type: string }, description: Empty means every product }
+    AffiliateCampaign:
+      type: object
+      description: A running campaign open to the signed-in affiliate
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: [string, 'null'], format: date-time }
+        all_products: { type: boolean }
+        products: { type: array, items: { type: object, properties: { id: { type: string }, name: { type: string }, slug: { type: string } } } }
+        commission:
+          type: [object, 'null']
+          description: The campaign rate in force; null means the affiliate's normal rates apply
+          properties: { kind: { type: string, enum: [percent, fixed] }, rate_bp: { type: [integer, 'null'] }, fixed_minor: { type: [integer, 'null'] }, currency: { type: [string, 'null'] } }
+        coupons: { type: array, description: The affiliate's own active coupons for this campaign, items: { type: object, properties: { code: { type: string }, discount_type: { type: string, enum: [percent, fixed] }, discount_value: { type: integer } } } }
+        my_links: { type: integer, description: Number of the affiliate's links made for this campaign }
+    MarketingAsset:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        kind: { type: string, enum: [image, video, document, archive, text] }
+        caption: { type: [string, 'null'], description: Suggested post text; the whole material for kind text }
+        has_file: { type: boolean }
+        mime: { type: [string, 'null'], description: Detected from the file content }
+        size_bytes: { type: [integer, 'null'] }
+        campaign: { type: [object, 'null'], properties: { id: { type: string }, name: { type: string } } }
+        product: { type: [object, 'null'], properties: { id: { type: string }, name: { type: string }, slug: { type: string } } }
+        created_at: { type: [string, 'null'], format: date-time }
+    StaffMarketingAsset:
+      allOf:
+        - $ref: '#/components/schemas/MarketingAsset'
+        - type: object
+          properties:
+            is_active: { type: boolean }
+            original_name: { type: [string, 'null'] }
+            download_count: { type: integer, description: Affiliate downloads; inline previews are not counted }
+    FraudFlag:
+      type: object
+      properties:
+        id: { type: string }
+        signal: { type: string, enum: [high_conversion, clicks_without_orders, refund_rate, rapid_earnings, large_payout, payout_after_detail_change] }
+        signal_label: { type: string }
+        guidance: { type: string, description: What a reviewer should look at }
+        severity: { type: string, enum: [low, medium, high] }
+        details: { type: object, description: What was measured and the threshold it crossed }
+        subject: { type: [object, 'null'], description: 'For payout flags: { type: payout, id: payout public id }', properties: { type: { type: string }, id: { type: string } } }
+        status: { type: string, enum: [open, dismissed, confirmed] }
+        status_label: { type: string }
+        affiliate: { type: [object, 'null'], properties: { id: { type: string }, display_name: { type: string }, referral_code: { type: [string, 'null'] } } }
+        detected_at: { type: [string, 'null'], format: date-time }
+        reviewed_by: { type: [string, 'null'] }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        review_note: { type: [string, 'null'] }
+    MarketingAssetFields:
+      type: object
+      properties:
+        title: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        caption: { type: [string, 'null'], maxLength: 5000 }
+        campaign_id: { type: [string, 'null'] }
+        product_id: { type: [string, 'null'] }
+        is_active: { type: boolean }
   responses:
     Unauthenticated: { description: Not signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
     Forbidden: { description: 'Missing permission, disabled account or unverified email', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
@@ -631,6 +734,33 @@ paths:
       summary: Whether this browser holds a valid referral (first-party web app only)
       responses:
         '200': { description: 'data: { referred: boolean, affiliate_name: string|null }' }
+  /store/affiliate-programme:
+    get:
+      security: []
+      summary: Public facts for the affiliate programme page, from live settings, the global rule in force and the current terms
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      currency: { type: string }
+                      standard_rate:
+                        type: [object, 'null']
+                        description: The newest global percent or fixed rule in force; null when none. Plan, affiliate, product and campaign rates are never shown.
+                        properties: { kind: { type: string, enum: [percent, fixed] }, rate_bp: { type: [integer, 'null'] }, fixed_minor: { type: [integer, 'null'] } }
+                      attribution_window_days: { type: integer }
+                      holding_period_days: { type: integer }
+                      payout_minimum_minor: { type: integer }
+                      payout_methods: { type: array, items: { type: string }, example: [Bank transfer, eSewa, Khalti] }
+                      terms:
+                        type: [object, 'null']
+                        properties: { version: { type: string }, title: { type: string }, body: { type: string }, published_at: { type: string, format: date-time } }
   /store/cart/quote:
     post:
       security: []
@@ -755,6 +885,7 @@ paths:
                 name: { type: string }
                 slug: { type: string, pattern: '^[a-z0-9][a-z0-9-]*$' }
                 product_id: { type: [string, 'null'] }
+                campaign_id: { type: [string, 'null'], description: 'A running campaign open to you (see GET /affiliate/campaigns); otherwise 422 on campaign_id' }
                 utm_source: { type: [string, 'null'] }
                 utm_medium: { type: [string, 'null'] }
                 utm_campaign: { type: [string, 'null'] }
@@ -764,12 +895,51 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
   /affiliate/links/{link}:
     patch:
-      summary: Rename, retag or pause your own link (slug cannot change)
+      summary: Rename, retag, change the campaign of or pause your own link (slug cannot change)
       security: [{ bearer: [] }, { session: [] }]
       parameters: [{ name: link, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                product_id: { type: [string, 'null'] }
+                campaign_id: { type: [string, 'null'], description: 'A running campaign open to you, or null to unlink' }
+                utm_source: { type: [string, 'null'] }
+                utm_medium: { type: [string, 'null'] }
+                utm_campaign: { type: [string, 'null'] }
+                is_active: { type: boolean }
       responses:
-        '200': { description: OK }
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/AffiliateLink' } } } } } }
         '404': { description: Not your link }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /affiliate/campaigns:
+    get:
+      summary: Campaigns running now that are open to the signed-in affiliate (affiliate.portal, approved at least once)
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/AffiliateCampaign' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /affiliate/marketing-assets:
+    get:
+      summary: 'Active marketing materials, newest first, up to 200, not paged (affiliate.portal). Campaign materials only while the campaign runs and only to affiliates taking part.'
+      security: [{ bearer: [] }, { session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/MarketingAsset' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /affiliate/marketing-assets/{asset}/file:
+    get:
+      summary: 'Download a material visible to you (affiliate.portal, 120/min). Counts as a download unless inline=1.'
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: asset, in: path, required: true, schema: { type: string } }
+        - { name: inline, in: query, schema: { type: boolean }, description: 'Show an image inline (for previews); other kinds are always attachments' }
+      responses:
+        '200': { description: 'The file, named after the title, with X-Content-Type-Options nosniff and Content-Security-Policy "default-src ''none''; sandbox"' }
+        '404': { description: 'Not visible to you, or no file' }
+        '429': { $ref: '#/components/responses/TooMany' }
   /affiliate/referrals/summary:
     get:
       summary: Clicks, placed orders, daily series and per-link breakdown (dates in Asia/Kathmandu, max one year)
@@ -859,17 +1029,136 @@ paths:
                 ends_at: { type: [string, 'null'], format: date-time }
                 is_active: { type: boolean }
                 earns_commission: { type: boolean }
+                campaign_id: { type: [string, 'null'], description: Campaign public id; orders with this coupon count for the campaign while it runs }
                 product_ids: { type: array, items: { type: string }, description: Empty means all products }
       responses:
-        '201': { description: Created }
+        '201': { description: 'Created; the coupon includes campaign: { id, name } or null' }
         '422': { $ref: '#/components/responses/Invalid' }
   /admin/coupons/{coupon}:
     patch:
-      summary: Update a coupon (campaigns.manage). The code cannot change after it has been used.
+      summary: Update a coupon (campaigns.manage), including campaign_id (null unlinks). The code cannot change after it has been used.
       security: [{ bearer: [] }, { session: [] }]
       parameters: [{ name: coupon, in: path, required: true, schema: { type: string } }]
       responses:
         '200': { description: OK }
+  /admin/campaigns:
+    get:
+      summary: Campaigns with results (campaigns.manage, commission_rules.manage or commissions.view), 50 per page
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: state, in: query, schema: { type: string, enum: [running, upcoming, ended, all], default: all } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Campaign' } }
+                  meta: { type: object, properties: { current_page: { type: integer }, last_page: { type: integer }, total: { type: integer } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a campaign (campaigns.manage, audited as campaign.created). Its rate is a commission rule with scope campaign.
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CampaignInput'
+                - { required: [name, starts_at] }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Campaign' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /admin/campaigns/{campaign}:
+    get:
+      summary: One campaign with results (campaigns.manage, commission_rules.manage or commissions.view)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: campaign, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Campaign' } } } } } }
+        '404': { description: Not found }
+    patch:
+      summary: Change a campaign (campaigns.manage, audited as campaign.updated). Send only the fields to change. There is no delete.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: campaign, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CampaignInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Campaign' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /admin/marketing-assets:
+    get:
+      summary: Marketing library (marketing_assets.manage), 50 per page
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: campaign_id, in: query, schema: { type: string } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/StaffMarketingAsset' } }
+                  meta: { type: object, properties: { current_page: { type: integer }, last_page: { type: integer }, total: { type: integer } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: 'Upload a file or add post text (marketing_assets.manage, 30/min, audited). The type is detected from the content: JPEG, PNG, WebP, GIF, MP4, PDF or ZIP; SVG and others are refused. Size limit AFFILIATE_MARKETING_MAX_UPLOAD_KB (default 20480).'
+      security: [{ bearer: [] }, { session: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/MarketingAssetFields'
+                - type: object
+                  required: [title]
+                  properties:
+                    file: { type: string, format: binary, description: Optional when caption is given (a text-only material) }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMarketingAsset' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooMany' }
+  /admin/marketing-assets/{asset}:
+    patch:
+      summary: Change the details of a material (marketing_assets.manage, audited). The file cannot be replaced; a text material must keep its text.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: asset, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MarketingAssetFields' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/StaffMarketingAsset' } } } } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+    delete:
+      summary: Delete a material and its file (marketing_assets.manage, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: asset, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Not found }
+  /admin/marketing-assets/{asset}/file:
+    get:
+      summary: Staff download or preview of a material (marketing_assets.manage). Not counted as a download.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: asset, in: path, required: true, schema: { type: string } }
+        - { name: inline, in: query, schema: { type: boolean }, description: Show an image inline }
+      responses:
+        '200': { description: 'The file, with X-Content-Type-Options nosniff and Content-Security-Policy "default-src ''none''; sandbox"' }
+        '404': { description: Not found or no file }
   /admin/orders:
     get:
       summary: Orders with masked customer contact (orders.view); attribution filters need attribution.view
@@ -1047,7 +1336,7 @@ paths:
       summary: Rules in precedence order (commission_rules.manage or commissions.view)
       security: [{ bearer: [] }, { session: [] }]
       parameters:
-        - { name: scope, in: query, schema: { type: string, enum: [global, plan, category, product, affiliate] } }
+        - { name: scope, in: query, schema: { type: string, enum: [global, plan, category, product, affiliate, campaign] } }
         - { name: active, in: query, schema: { type: boolean } }
       responses:
         '200': { description: 'data: CommissionRule[]' }
@@ -1063,9 +1352,9 @@ paths:
               required: [name, scope, kind, starts_at]
               properties:
                 name: { type: string }
-                scope: { type: string, enum: [global, plan, category, product, affiliate] }
-                target_id: { type: [string, 'null'] }
-                kind: { type: string, enum: [percent, fixed, exclude] }
+                scope: { type: string, enum: [global, plan, category, product, affiliate, campaign] }
+                target_id: { type: [string, 'null'], description: 'Plan, product, affiliate or campaign public id, or category slug; null for global' }
+                kind: { type: string, enum: [percent, fixed, exclude], description: exclude is only for product and category rules }
                 rate_bp: { type: integer, minimum: 1, description: Up to AFFILIATE_COMMISSION_MAX_RATE_BP (5000) }
                 fixed_minor: { type: integer, minimum: 1 }
                 starts_at: { type: string, format: date-time }
@@ -1165,6 +1454,44 @@ paths:
       responses:
         '200': { description: Updated commission }
         '422': { description: Not allowed from the current state }
+  /admin/fraud-flags:
+    get:
+      summary: Fraud review queue (fraud.review), newest first, 25 per page. Flags never hold or block anything.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, dismissed, confirmed, all], default: open } }
+        - { name: affiliate_id, in: query, schema: { type: string }, description: Affiliate public id }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/FraudFlag' } }
+                  meta: { type: object, properties: { current_page: { type: integer }, last_page: { type: integer }, total: { type: integer }, open: { type: integer, description: All open flags } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/fraud-flags/{flag}/review:
+    post:
+      summary: Record a finding on an open flag (fraud.review, audited as fraud_flag.reviewed). Confirming does not change money.
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: flag, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, note]
+              properties:
+                outcome: { type: string, enum: [confirmed, dismissed] }
+                note: { type: string, minLength: 5, maxLength: 1000 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/FraudFlag' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: 'Invalid, or already reviewed (errors.status)' }
   /admin/adjustments:
     get:
       summary: Adjustments (commissions.view)
@@ -1309,7 +1636,7 @@ paths:
       security: [{ bearer: [] }, { session: [] }]
       parameters: [{ name: payout, in: path, required: true, schema: { type: string } }]
       responses:
-        '200': { description: 'data: StaffPayout + destination_details, commissions[], ledger[]' }
+        '200': { description: 'data: StaffPayout + destination_details, open_fraud_flags[] ({ id, signal_label, severity, detected_at } for the affiliate), commissions[], ledger[]' }
   /admin/payouts/{payout}/{action}:
     post:
       summary: 'approve (note?) and reject (note) need payouts.review; mark-paid (reference) and mark-failed (reason) need payouts.mark_paid. Reject and mark-failed return the funds. A transfer reference is unique per method.'

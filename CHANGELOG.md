@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 (Unreleased)
+
+Closes the main specification gaps left in 1.0.0 (Phase 10). [Report](docs/phase-10-report.md)
+
+- **Affiliate notices**: an email and in-app notice when a referred order is paid (masked order number, commission and when it becomes payable, or that no commission applies), and when commission is reversed by a refund or cancelled by staff (never with the staff reason). Everyone gets a "password changed" email after a password reset.
+- **Fraud signals and review queue**: a nightly check (04:00 Nepal time) for unusually high conversion, many clicks with no orders, high refund rates and sudden earnings jumps, and a check on each payout request for large amounts and recent payout-detail changes. Thresholds are set in `.env` (`AFFILIATE_FRAUD_*`). Flags go to a **Fraud review** screen and show on the payout screen; they never block or hold anything by themselves.
+- **Public programme page**: `/affiliates` ("Earn with us" in the store menu) explains the programme from the live settings, the global rate and the current terms.
+- **Campaigns**: dated promotions for chosen products and affiliates, with their own commission rule (after exclusions, before affiliate overrides). Orders join a campaign through a campaign tracking link or a campaign coupon. Staff see orders, sales and commission against an informational budget. Affiliates see open campaigns and make campaign links on **Referral links**.
+- **Marketing materials**: staff upload images, MP4 videos, PDFs, ZIP files (up to 20 MB) or post text; affiliates browse, download and copy them. File types are checked from the content, SVG is refused, and files are served only through the API.
+- API spec version 1.1.0 with the new endpoints. Upload limits raised in `docker/php.ini` and `docker/nginx.conf`.
+
+### Database changes
+
+Three new migrations create `fraud_flags`, the campaign tables and `marketing_assets`, and add a nullable `campaign_id` to links, coupons, attributions and commission rules. None changes or removes existing data. See [docs/migrations.md](docs/migrations.md).
+
 ## 1.0.0 (release candidate, 2026-10-12)
 
 First production release. Built in phases; each phase report in `docs/` lists what was built and tested.

@@ -1,6 +1,6 @@
 # Business requirements and assumptions
 
-Release 1.0.0, branch `phase-9-release`, 2026-10-12.
+Release 1.0.0, branch `phase-9-release`, 2026-10-12. Updated for release 1.1.0 (branch `phase-10-gaps`) where Phase 10 changed a decision.
 
 This document has three parts:
 
@@ -103,7 +103,7 @@ Each value below was checked in `config/affiliate.php`, `config/payments.php`, o
 | Self-referral | Skipped; order saved with `attribution_status = blocked` and the reason | `AttributionResolver`, ADR 0007 |
 | Data kept on a click | Landing path, referrer host, UTM tags, sub-id, keyed hashes of visitor id and IP. No raw IP, user agent or location. | ADR 0007 |
 | Retention | Hashes cleared after 90 days; clicks deleted after 395 days; runs daily at 03:15 Nepal time | `privacy.click_metadata_retention_days`, `privacy.click_retention_days`; `routes/console.php` |
-| Campaigns | No separate campaign entity. A "campaign" in reports is a coupon. | ADR 0010 |
+| Campaigns | Since 1.1.0, `campaigns` with dates, products and affiliates. An order joins a campaign only through a campaign coupon or a campaign tracking link, while the campaign runs and the affiliate takes part. Reports and dashboards still group "campaigns" by coupon. | `CheckoutService::campaignFor`, ADR 0008, ADR 0010 |
 
 ### 2.5 Store, coupons and payments
 
@@ -144,7 +144,8 @@ Each value below was checked in `config/affiliate.php`, `config/payments.php`, o
 | Partial refund | Commission recomputed on what is left of the line; the difference is reversed | ADR 0008, `RefundReversalTest` |
 | Refund after payout | Reversed from the available balance, which may go negative and is recovered from future commission | ADR 0008, ADR 0009 |
 | Adjustments | Signed amount and reason, approved by a different person (maker-checker) | ADR 0008, `AdjustmentAndReconciliationTest` |
-| Not built | Campaign overrides, tiered, recurring, multi-level. Multi-level stays off (`commissions.multi_level_enabled = false`, not read by any code). | ADR 0008, `config/affiliate.php` |
+| Campaign rate | A campaign-scope rule comes after exclusions and before affiliate overrides, only for the campaign's products (1.1.0). The campaign budget is informational. | ADR 0008, `RuleResolver` |
+| Not built | Tiered, recurring, multi-level. Multi-level stays off (`commissions.multi_level_enabled = false`, not read by any code). | ADR 0008, `config/affiliate.php` |
 
 ### 2.7 Payouts
 
@@ -219,13 +220,13 @@ These are not settled. The build uses the default shown until the owner decides.
 
 | # | Feature | Status |
 |---|---|---|
-| 23 | Campaigns as a real feature (dates, products, affiliates, commission overrides) | Not built; coupons stand in |
-| 24 | Marketing assets for affiliates | Not built |
-| 25 | Fraud flags, risk thresholds and a review queue | Not built; only holds and the payment review queue |
-| 26 | Public affiliate landing page with FAQ | Not built |
+| 23 | Campaigns as a real feature (dates, products, affiliates, commission overrides) | Built in 1.1.0; no campaign landing pages, and the budget does not stop commission |
+| 24 | Marketing assets for affiliates | Built in 1.1.0 |
+| 25 | Fraud flags, risk thresholds and a review queue | Built in 1.1.0; thresholds need tuning on real traffic (`AFFILIATE_FRAUD_*`) |
+| 26 | Public affiliate landing page with FAQ | Built in 1.1.0 (`/affiliates`) |
 | 27 | Staff and settings screens | Console and `.env` only |
 | 28 | MFA for staff | Not built; the most useful next security feature |
-| 29 | Notices for new attributed order, new commission, commission reversal | Not built |
+| 29 | Notices for new attributed order, new commission, commission reversal | Built in 1.1.0, sent when the order is paid; no notice when an unpaid order is placed |
 | 30 | Phone verification by SMS | Needs an SMS provider (for example Sparrow SMS or Aakash SMS) |
 | 31 | Automated payouts through a bank or wallet API | Needs a provider with a verified payout API |
 | 32 | Courier integration | Manual courier and tracking entry today |

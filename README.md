@@ -2,7 +2,7 @@
 
 Affiliate management system for a Nepal smart NFC card store (NPR, Asia/Kathmandu): affiliate onboarding, referral tracking, commission accounting, payouts, dashboards and reports.
 
-**Status: release 1.0.0 candidate (Phases 1 to 9 complete).** See the [release-readiness assessment](docs/release-readiness.md) and [known limitations](docs/known-limitations.md) before going live.
+**Status: release 1.0.0 candidate (Phases 1 to 9 complete); 1.1.0 (Phase 10) unreleased.** See the [release-readiness assessment](docs/release-readiness.md) and [known limitations](docs/known-limitations.md) before going live.
 
 What it does:
 
@@ -14,6 +14,8 @@ What it does:
 - Commission rules and plans, an append-only ledger, a holding period, holds, two-person adjustments and nightly reconciliation.
 - Encrypted payout details, payout requests, finance approval and manual transfers with a unique reference.
 - Affiliate, staff and finance dashboards, and reports with CSV and Excel export.
+- Campaigns with their own commission rate, a marketing materials library, and a public programme page.
+- Fraud flags with a staff review queue, and email notices to affiliates for paid orders and reversed commission.
 
 Each phase report in `docs/` lists what was built and the test results; [CHANGELOG.md](CHANGELOG.md) links them all.
 
@@ -40,7 +42,7 @@ php artisan affiliate:create-admin
 npm run build                    # or `npm run dev` while developing
 php artisan serve                # http://localhost:8000
 php artisan queue:work           # in a second terminal: sends queued emails
-php artisan schedule:work        # optional locally: commission maturation, reconciliation, retention
+php artisan schedule:work        # optional locally: commission maturation, reconciliation, fraud checks, retention
 ```
 
 With `MAIL_MAILER=log`, verification and reset emails are written to `storage/logs/`.
@@ -67,6 +69,7 @@ Online payments are off until switched on in `.env`:
 | `php artisan affiliate:prune-referral-data` | Apply click retention (also scheduled daily) |
 | `php artisan affiliate:mature-commissions` | Approve and release commissions past the holding period (also scheduled hourly) |
 | `php artisan affiliate:reconcile-commissions` | Check the ledger against commissions and adjustments (also scheduled daily) |
+| `php artisan affiliate:detect-fraud` | Raise fraud flags for staff review (also scheduled daily) |
 | `php artisan payments:recheck` | Ask eSewa or Khalti about unfinished online payments (also scheduled every five minutes) |
 | `scripts/backup-db.sh` / `scripts/restore-db.sh` | Encrypted database backup and checked restore ([guide](docs/backup-and-restore.md)) |
 | `php artisan test tests/Concurrency` | Parallel money races against MySQL ([guide](docs/load-and-concurrency.md)) |
@@ -83,4 +86,4 @@ Online payments are off until switched on in `.env`:
 - Guides for people: [administrator guide](docs/admin-guide.md), [affiliate guide](docs/affiliate-guide.md)
 - Running it: [deployment](docs/deployment.md) (Linux and Docker Compose), [migrations](docs/migrations.md), [operations runbook](docs/operations.md), [production configuration](docs/production-config.md), [backup and restore](docs/backup-and-restore.md)
 - [Security review](docs/security-review.md), [load and concurrency tests](docs/load-and-concurrency.md)
-- Release: [feature checklist](docs/feature-checklist.md), [requirements and assumptions](docs/requirements-and-assumptions.md), [known limitations](docs/known-limitations.md), [release readiness](docs/release-readiness.md), [Phase 9 report](docs/phase-9-report.md)
+- Release: [feature checklist](docs/feature-checklist.md), [requirements and assumptions](docs/requirements-and-assumptions.md), [known limitations](docs/known-limitations.md), [release readiness](docs/release-readiness.md), [Phase 9 report](docs/phase-9-report.md), [Phase 10 report](docs/phase-10-report.md)

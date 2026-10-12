@@ -8,7 +8,7 @@ For whoever runs the server. Business tasks (reviewing affiliates, confirming pa
 |---|---|---|
 | Web (nginx + PHP-FPM) | `curl -fsS https://<domain>/up` returns 200 | The shop and portals are down |
 | Queue worker | `sudo supervisorctl status affiliate-worker` shows RUNNING | No emails or in-app notices go out; they wait in the `jobs` table and send once it restarts |
-| Scheduler | `php artisan schedule:list`; cron line present for the deploy user | Unfinished online payments are not re-checked; commissions stop maturing; no nightly reconciliation |
+| Scheduler | `php artisan schedule:list`; cron line present for the deploy user | Unfinished online payments are not re-checked; commissions stop maturing; no nightly reconciliation or fraud check |
 | MySQL | `mysqladmin ping` | Everything stops |
 
 With Docker: `docker compose -f compose.production.yml ps` should show five healthy services.

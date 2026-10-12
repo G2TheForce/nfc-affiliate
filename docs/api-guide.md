@@ -8,7 +8,7 @@ Everything below is taken from `routes/api.php`, `routes/web.php`, the controlle
 
 - Every endpoint is under `https://<host>/api/v1` (for example `https://store.example/api/v1/auth/login`). Locally the host is `http://localhost:8000`.
 - The version is part of the path (`v1`). Breaking changes will go under a new prefix, and `v1` stays as it is.
-- Send `Accept: application/json` and, on requests with a body, `Content-Type: application/json`. Every `/api/*` response is JSON, errors included (`shouldRenderJsonWhen` in `bootstrap/app.php`). Report exports are the only exception: they return a file.
+- Send `Accept: application/json` and, on requests with a body, `Content-Type: application/json`. Every `/api/*` response is JSON, errors included (`shouldRenderJsonWhen` in `bootstrap/app.php`). Report exports and marketing material files are the only exceptions: they return a file. Uploading a marketing material is the only request sent as `multipart/form-data` (section 10.3).
 - Always send the `Accept` header. The framework's `verified` middleware checks it: with the header, an unverified user gets a JSON 403; without it, they get a 302 redirect to `/verify-email`.
 - Production forces `https` URLs (`URL::forceScheme('https')`).
 - Health check: `GET /up` (outside `/api`).
@@ -116,6 +116,8 @@ Limiters are defined in `AppServiceProvider::configureRateLimiting()` and as `th
 | `POST /store/orders` and `POST /store/orders/{order}/payments` (`checkout`) | 10/min (on top of `store`) | IP |
 | Affiliate application, membership closure, payout request, payout method change | 6/min | user |
 | `POST /affiliate/links` | 30/min | user |
+| `GET /affiliate/marketing-assets/{asset}/file` | 120/min | user |
+| `POST /admin/marketing-assets` | 30/min | user |
 | Report exports (`exports`) | 10/min | user |
 | `POST /admin/payment-attempts/{attempt}/recheck` | 20/min | user |
 | `POST /admin/reconciliation` | 6/min | user |
@@ -175,7 +177,49 @@ Staff routes need a verified email, `admin.access` and the permission named in e
 - Returns **201** with the order detail. Sending the same reference for the same order and amount returns **200** and changes nothing. A reference already used elsewhere, a cancelled order or an already-paid order returns 422.
 - Confirming a payment marks the order paid and creates commissions in the same transaction.
 
-## 10. Examples
+## 10. Campaigns, marketing materials, fraud flags and the programme page (1.1.0)
+
+### 10.1 Public programme facts
+
+`GET /store/affiliate-programme` needs no sign-in (the `store` limit applies). It returns the figures shown on the public `/affiliates` page, read from the live configuration and rules:
+
+- `currency`
+- `standard_rate`: `{kind, rate_bp, fixed_minor}` from the newest global rule in force, or `null` when there is none. Plan, affiliate, product and campaign rates are never included.
+- `attribution_window_days`, `holding_period_days`, `payout_minimum_minor`
+- `payout_methods`: labels, for example `["Bank transfer", "eSewa", "Khalti"]`
+- `terms`: `{version, title, body, published_at}` of the current terms, or `null`
+
+### 10.2 Campaigns
+
+- **Staff** (`campaigns.manage`): `GET /admin/campaigns` (`?state=running|upcoming|ended|all`, default `all`, 50 per page), `POST /admin/campaigns`, `GET /admin/campaigns/{campaign}` and `PATCH /admin/campaigns/{campaign}`. The two `GET` routes also accept `commission_rules.manage` or `commissions.view`. There is no delete; send `is_active: false` or an `ends_at` instead. Creates and updates are audited (`campaign.created`, `campaign.updated`).
+- **Body:** `name` (3 to 120, required on create), `description`, `starts_at` (required on create), `ends_at` (after `starts_at`), `budget_minor`, `is_active`, `all_affiliates`, `affiliate_ids[]` and `product_ids[]` (public ids). With `all_affiliates: false`, at least one affiliate is required. An empty `product_ids` means every product. `budget_minor` is informational and never limits commission.
+- **Response:** `id`, `name`, `description`, `starts_at`, `ends_at`, `state` (`running`, `upcoming` or `ended`), `is_active`, `budget_minor`, `currency`, `all_affiliates`, `affiliates[]`, `products[]`, `rule` (the campaign commission rule in force, or `null`) and `stats` (`orders`, `sales_minor`, `commission_minor`: paid and partly refunded orders, product sales after discounts, and net commission).
+- **Rate:** a campaign's commission is a commission rule with `scope: "campaign"` and `target_id` set to the campaign id (`kind` `percent` or `fixed`; `exclude` is refused). It comes after exclusions and before affiliate overrides. `GET /admin/commission-rules/preview` and `GET /affiliate/earnings/rates` do not take campaigns into account.
+- **Coupons:** `POST /admin/coupons` and `PATCH /admin/coupons/{coupon}` accept `campaign_id` (a campaign id, or `null` to unlink). Coupons return `campaign: {id, name}` or `null`.
+- **Affiliates** (`affiliate.portal`): `GET /affiliate/campaigns` lists campaigns running now that are open to the signed-in member: `id`, `name`, `description`, `starts_at`, `ends_at`, `all_products`, `products[]`, `commission` (`{kind, rate_bp, fixed_minor, currency}` or `null`), `coupons[]` (the member's own active coupons for it: `code`, `discount_type`, `discount_value`) and `my_links` (count). `POST /affiliate/links` and `PATCH /affiliate/links/{link}` accept `campaign_id`. It must be a running campaign open to the member, or the request fails with 422 on `campaign_id`. Links return `campaign: {id, name}` or `null`.
+- **Which orders count:** at checkout the order takes the campaign of the affiliate coupon used, else of the clicked tracking link, else of a store-wide coupon used. It counts only while the campaign runs and the credited affiliate takes part. The main referral link and a typed `referral_code` never bring a campaign.
+
+### 10.3 Marketing materials
+
+- **Staff** (`marketing_assets.manage`): `GET /admin/marketing-assets` (`?campaign_id=`, `?active=1|0`, 50 per page), `POST /admin/marketing-assets`, `PATCH /admin/marketing-assets/{asset}`, `DELETE /admin/marketing-assets/{asset}` (204; also deletes the file) and `GET /admin/marketing-assets/{asset}/file`. Changes are audited (`marketing_asset.created`, `.updated`, `.deleted`).
+- **Upload:** send `POST /admin/marketing-assets` as `multipart/form-data` with `title` (2 to 120, required), `description`, `caption` (post text, up to 5,000), `campaign_id`, `product_id`, `is_active` (`1` or `0`) and `file`. The file is optional when `caption` is given (a text-only material). The type is detected from the file's content: JPEG, PNG, WebP, GIF, MP4, PDF or ZIP. Anything else, including SVG, gets 422 on `file`. The size limit is `AFFILIATE_MARKETING_MAX_UPLOAD_KB` (20,480 KB by default). `PATCH` takes the same fields as JSON, except `file`: a file cannot be replaced.
+- **Response:** `id`, `title`, `description`, `kind` (`image`, `video`, `document`, `archive` or `text`), `caption`, `has_file`, `mime`, `size_bytes`, `campaign`, `product`, `created_at`. Staff responses also have `is_active`, `original_name` and `download_count`.
+- **Affiliates** (`affiliate.portal`): `GET /affiliate/marketing-assets` returns up to 200 active materials, newest first, without paging. A material linked to a campaign is listed only while the campaign runs and only to members taking part. `GET /affiliate/marketing-assets/{asset}/file` returns 404 for anything not in that list.
+- **Files:** both `.../file` endpoints send the file as an attachment named after the title, with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`. Add `?inline=1` to show an image in the page instead (other kinds are always attachments). An affiliate download counts towards `download_count`; an inline preview and a staff download do not. Files are kept on the private disk and have no public URL.
+
+### 10.4 Fraud flags
+
+- `GET /admin/fraud-flags` (`fraud.review`): `?status=open|confirmed|dismissed|all` (default `open`), `?affiliate_id=`, 25 per page. `meta` has `current_page`, `last_page`, `total` and `open` (all open flags).
+- Each flag: `id`, `signal` (`high_conversion`, `clicks_without_orders`, `refund_rate`, `rapid_earnings`, `large_payout`, `payout_after_detail_change`), `signal_label`, `guidance`, `severity` (`low`, `medium`, `high`), `details` (what was measured and the limit), `subject` (`{type: "payout", id}` or `null`), `status`, `status_label`, `affiliate` (`id`, `display_name`, `referral_code`), `detected_at`, `reviewed_by`, `reviewed_at`, `review_note`.
+- `POST /admin/fraud-flags/{flag}/review` (`fraud.review`) with `outcome` (`confirmed` or `dismissed`) and `note` (5 to 1,000 characters). Returns the flag. A flag that is already reviewed gets 422 on `status`. Audited as `fraud_flag.reviewed`.
+- Flags are raised by `affiliate:detect-fraud` (daily at 04:00 Nepal time) and when a payout is requested. They never change money or block a request.
+- `GET /admin/payouts/{payout}` now also returns `open_fraud_flags`: `[{id, signal_label, severity, detected_at}]` for the payout's affiliate.
+
+### 10.5 New notification types
+
+`GET /notifications` can now contain `affiliate.referred_order_paid` and `affiliate.commission_reversed` (for affiliates, with `amount_minor` and `currency`) and `fraud.flags_raised` (for staff). The password-changed notice is email only.
+
+## 11. Examples
 
 ```bash
 API=https://store.example/api/v1
@@ -251,7 +295,7 @@ curl -s -G "$API/admin/reports/commission-accruals/export" \
 # Affiliates: GET /affiliate/reports/my-statement/export?format=xlsx
 ```
 
-## 11. Endpoint index
+## 12. Endpoint index
 
 Paths are relative to `/api/v1`. Request bodies and response fields are in [`openapi.yaml`](api/openapi.yaml).
 
@@ -260,16 +304,17 @@ Paths are relative to `/api/v1`. Request bodies and response fields are in [`ope
 | Auth (public) | `POST auth/register`, `POST auth/login`, `POST auth/forgot-password`, `POST auth/reset-password`, `GET auth/verify-email/{user}/{hash}` |
 | Auth (signed in) | `GET auth/me`, `POST auth/logout`, `POST auth/email/verification-notification` |
 | Notifications | `GET notifications`, `POST notifications/{id}/read`, `POST notifications/read-all` |
-| Store (public) | `GET store/products`, `GET store/products/{slug}`, `GET store/categories`, `GET store/referral`, `POST store/cart/quote`, `POST store/orders` |
+| Store (public) | `GET store/products`, `GET store/products/{slug}`, `GET store/categories`, `GET store/referral`, `GET store/affiliate-programme`, `POST store/cart/quote`, `POST store/orders` |
 | Store payments | `GET store/payment-methods`, `POST store/orders/{order}/payments`, `GET store/orders/{order}/payment-status` |
 | Customer orders | `GET orders`, `GET orders/{order}` |
 | Affiliate membership | `GET affiliate/terms/current`, `POST affiliate/terms/accept`, `POST affiliate/applications`, `GET/PATCH affiliate/profile`, `POST affiliate/profile/close` |
-| Affiliate portal | `GET/POST affiliate/links`, `PATCH affiliate/links/{link}`, `GET affiliate/referrals/{summary,orders}`, `GET affiliate/earnings/{summary,commissions,ledger,rates}`, `GET affiliate/dashboard`, `GET affiliate/reports`, `GET affiliate/reports/{report}/export` |
+| Affiliate portal | `GET/POST affiliate/links`, `PATCH affiliate/links/{link}`, `GET affiliate/campaigns`, `GET affiliate/marketing-assets`, `GET affiliate/marketing-assets/{asset}/file`, `GET affiliate/referrals/{summary,orders}`, `GET affiliate/earnings/{summary,commissions,ledger,rates}`, `GET affiliate/dashboard`, `GET affiliate/reports`, `GET affiliate/reports/{report}/export` |
 | Affiliate payouts | `GET affiliate/payouts/summary`, `GET/POST affiliate/payouts`, `POST affiliate/payouts/{payout}/cancel`, `PUT affiliate/payout-method` |
 | Admin: affiliates and terms | `GET admin/affiliates`, `GET admin/affiliates/counts`, `GET admin/affiliates/{affiliate}`, `POST admin/affiliates/{affiliate}/{approve,reject,notes,suspend,reinstate,deactivate,reactivate}`, `GET/POST admin/terms` |
 | Admin: catalog and coupons | `GET/POST admin/products`, `PATCH admin/products/{product}`, `GET/POST admin/categories`, `GET/POST admin/coupons`, `PATCH admin/coupons/{coupon}` |
+| Admin: campaigns and marketing | `GET/POST admin/campaigns`, `GET/PATCH admin/campaigns/{campaign}`, `GET/POST admin/marketing-assets`, `PATCH/DELETE admin/marketing-assets/{asset}`, `GET admin/marketing-assets/{asset}/file` |
 | Admin: orders and payments | `GET admin/orders`, `GET admin/orders/{order}`, `POST admin/orders/{order}/{cancel,attribution,payments,refunds,fulfilment,disputes}`, `POST admin/disputes/{dispute}/resolve`, `GET admin/payment-attempts`, `POST admin/payment-attempts/{attempt}/{recheck,resolve}` |
-| Admin: commissions | `GET/POST admin/commission-rules`, `GET admin/commission-rules/preview`, `PATCH admin/commission-rules/{rule}`, `GET/POST admin/commission-plans`, `PATCH admin/commission-plans/{plan}`, `POST admin/affiliates/{affiliate}/plan`, `GET admin/affiliates/{affiliate}/ledger`, `GET admin/commissions`, `GET admin/commissions/summary`, `GET admin/commissions/{commission}`, `POST admin/commissions/{commission}/{hold,release-hold,void,release}`, `GET/POST admin/adjustments`, `POST admin/adjustments/{adjustment}/{approve,reject}`, `GET/POST admin/reconciliation` |
+| Admin: commissions | `GET/POST admin/commission-rules`, `GET admin/commission-rules/preview`, `PATCH admin/commission-rules/{rule}`, `GET/POST admin/commission-plans`, `PATCH admin/commission-plans/{plan}`, `POST admin/affiliates/{affiliate}/plan`, `GET admin/affiliates/{affiliate}/ledger`, `GET admin/commissions`, `GET admin/commissions/summary`, `GET admin/commissions/{commission}`, `POST admin/commissions/{commission}/{hold,release-hold,void,release}`, `GET admin/fraud-flags`, `POST admin/fraud-flags/{flag}/review`, `GET/POST admin/adjustments`, `POST admin/adjustments/{adjustment}/{approve,reject}`, `GET/POST admin/reconciliation` |
 | Admin: payouts | `GET admin/payouts`, `GET admin/payouts/summary`, `GET admin/payouts/{payout}`, `POST admin/payouts/{payout}/{approve,reject,mark-paid,mark-failed}` |
 | Admin: dashboards and reports | `GET admin/dashboard`, `GET admin/dashboard/filter-options`, `GET admin/finance/dashboard`, `GET admin/reports`, `GET admin/reports/{report}`, `GET admin/reports/{report}/export`, `GET admin/referrals/summary`, `GET admin/audit-logs`, `GET admin/ping` |
 | Web (not API) | `GET /ref/{code}/{link?}` (referral redirect, records a click and sets the `nfc_ref` cookie); `/payments/esewa/return`, `/payments/esewa/failure/{attempt}`, `/payments/khalti/return` (providers only) |

@@ -158,6 +158,7 @@ What it runs (times are Nepal time where stated):
 | `affiliate:mature-commissions` (approve and release after the holding period) | hourly |
 | `affiliate:prune-referral-data` (click retention) | 03:15 daily |
 | `affiliate:reconcile-commissions` (ledger check, emails finance on a problem) | 03:30 daily |
+| `affiliate:detect-fraud` (fraud flags for staff review) | 04:00 daily |
 | `sanctum:prune-expired`, `queue:prune-failed` | daily |
 
 `php artisan schedule:list` shows the next run of each.
