@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\Affiliate\ReportController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
+use App\Http\Controllers\Api\V1\Auth\ProfileController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Store\AffiliateProgrammeController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
@@ -86,6 +87,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::get('me', [AuthController::class, 'me'])->name('me');
+            Route::patch('me', [ProfileController::class, 'update'])->middleware('throttle:20,1')->name('me.update');
+            Route::post('password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('password.change');
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::post('email/verification-notification', [EmailVerificationController::class, 'resend'])
                 ->middleware('throttle:6,1')->name('verification.send');
