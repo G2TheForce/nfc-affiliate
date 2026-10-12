@@ -30,3 +30,10 @@ export async function downloadFile(path: string): Promise<void> {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Loads an image from the API with the session cookie and returns an object URL for an <img>. */
+export async function fetchObjectUrl(path: string): Promise<string> {
+    const response = await fetch(`/api/v1${path}`, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!response.ok) throw new ApiError(response.status, 'Could not load the preview.', {});
+    return URL.createObjectURL(await response.blob());
+}

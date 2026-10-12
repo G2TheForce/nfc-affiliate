@@ -35,6 +35,8 @@ import AdminHomePage from '@/pages/admin/AdminHomePage';
 import AuditLogPage from '@/pages/admin/AuditLogPage';
 import FraudPage from '@/pages/admin/FraudPage';
 import CampaignsPage from '@/pages/admin/CampaignsPage';
+import AdminMarketingPage from '@/pages/admin/MarketingPage';
+import MarketingPage from '@/pages/account/MarketingPage';
 import EmailVerifiedPage from '@/pages/auth/EmailVerifiedPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import LoginPage from '@/pages/auth/LoginPage';
@@ -76,6 +78,7 @@ export default function App() {
                                 { to: '/account/affiliate', label: 'Affiliate programme' },
                                 { to: '/account/affiliate/dashboard', label: 'Affiliate dashboard', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/links', label: 'Referral links', permission: 'affiliate.portal' },
+                                { to: '/account/affiliate/marketing', label: 'Marketing materials', permission: 'affiliate.portal' },
                                 { to: '/account/affiliate/referrals', label: 'Referral stats', permission: 'affiliate.portal' },
                                 { to: '/account/earnings', label: 'Earnings', permission: 'affiliate.portal' },
                                 { to: '/account/payouts', label: 'Payouts', permission: 'affiliate.portal' },
@@ -90,6 +93,7 @@ export default function App() {
                 <Route path="affiliate" element={<AffiliatePage />} />
                 <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
                 <Route path="affiliate/links" element={<ReferralLinksPage />} />
+                <Route path="affiliate/marketing" element={<MarketingPage />} />
                 <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
                 <Route path="earnings" element={<EarningsPage />} />
                 <Route path="payouts" element={<PayoutsPage />} />
@@ -118,6 +122,7 @@ export default function App() {
                                 { to: '/admin/referrals', label: 'Referral report', permission: 'reports.view' },
                                 { to: '/admin/campaigns', label: 'Campaigns', permission: 'campaigns.manage' },
                                 { to: '/admin/coupons', label: 'Coupons', permission: 'campaigns.manage' },
+                                { to: '/admin/marketing', label: 'Marketing materials', permission: 'marketing_assets.manage' },
                                 { to: '/admin/products', label: 'Products', permission: 'catalog.manage' },
                                 { to: '/admin/terms', label: 'Affiliate terms', permission: 'affiliates.view' },
                                 { to: '/admin/audit-logs', label: 'Audit log', permission: 'audit_logs.view' },
@@ -144,6 +149,7 @@ export default function App() {
                 <Route path="reconciliation" element={<ReconciliationPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
+                <Route path="marketing" element={<AdminMarketingPage />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
             </Route>

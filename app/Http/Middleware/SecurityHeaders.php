@@ -24,18 +24,22 @@ class SecurityHeaders
                 $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
             }
             // Vite's dev server needs inline/eval scripts locally, so the CSP
-            // is only applied to production builds.
-            $headers->set('Content-Security-Policy', implode('; ', [
-                "default-src 'self'",
-                "script-src 'self'",
-                "style-src 'self' 'unsafe-inline'",
-                "img-src 'self' data:",
-                "font-src 'self'",
-                "connect-src 'self'",
-                "frame-ancestors 'none'",
-                "base-uri 'self'",
-                'form-action '.implode(' ', ["'self'", ...$this->paymentFormOrigins()]),
-            ]));
+            // is only applied to production builds. Responses that set a
+            // stricter policy themselves (uploaded files) keep it.
+            if (! $headers->has('Content-Security-Policy')) {
+                $headers->set('Content-Security-Policy', implode('; ', [
+                    "default-src 'self'",
+                    "script-src 'self'",
+                    "style-src 'self' 'unsafe-inline'",
+                    // blob: for previews of marketing images fetched with the session.
+                    "img-src 'self' data: blob:",
+                    "font-src 'self'",
+                    "connect-src 'self'",
+                    "frame-ancestors 'none'",
+                    "base-uri 'self'",
+                    'form-action '.implode(' ', ["'self'", ...$this->paymentFormOrigins()]),
+                ]));
+            }
         }
 
         return $response;

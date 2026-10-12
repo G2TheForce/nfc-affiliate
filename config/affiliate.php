@@ -61,6 +61,12 @@ return [
         'require_separate_payer' => (bool) env('AFFILIATE_PAYOUT_REQUIRE_SEPARATE_PAYER', false),
     ],
 
+    // Marketing materials staff upload for affiliates. Keep the web server's
+    // and PHP's upload limits (docker/nginx.conf, docker/php.ini) above this.
+    'marketing' => [
+        'max_upload_kb' => (int) env('AFFILIATE_MARKETING_MAX_UPLOAD_KB', 20480),
+    ],
+
     // Fraud signals (spec section 15). Each crossing raises a flag for staff
     // review; nothing is held or blocked automatically.
     'fraud' => [

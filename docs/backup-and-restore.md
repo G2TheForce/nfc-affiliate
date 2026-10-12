@@ -7,7 +7,7 @@
 | MySQL database | Orders, commissions, the ledger, payouts, audit log | `scripts/backup-db.sh` (below) |
 | `APP_KEY` | Payout bank and wallet details are encrypted with it. **A database restored without the same key cannot show those details**; affiliates would have to re-enter them. | Store it in a password manager or secrets vault, separately from the database backups. Never in the repository. |
 | `.env` | Every other setting and credential | Same place as `APP_KEY` |
-| `storage/app/private` | Nothing yet (no uploads in this version) | Include it once marketing assets or uploads are added |
+| `storage/app/private/marketing` | Marketing materials uploaded by staff. Without them the library still lists each item, but downloads fail until the file is uploaded again. | Copy the folder off the server with the database backups, for example `rsync -a storage/app/private/marketing/ <backup-host>:affiliate/marketing/`. With Docker the folder is in the `app-storage` volume. |
 
 ## Making a backup
 
