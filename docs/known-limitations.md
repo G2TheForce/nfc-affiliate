@@ -13,12 +13,17 @@ What this release does not do, does only partly, or has not been tested against 
 
 ## Missing features
 
+The complete list of specification items that are partial or not built, with evidence, is in [feature-checklist.md](feature-checklist.md). The main ones are fraud flags and a review queue, order and commission notifications for affiliates, a public affiliate landing page, campaigns, marketing assets, and settings screens. The table below covers the ones staff will notice day to day.
+
 | Feature | Impact | Workaround |
 |---|---|---|
 | Staff management screen | Staff accounts can only be created, disabled and re-enabled on the server, and roles cannot be changed. The `admins.manage` permission exists but no screen uses it. | `affiliate:create-staff`, `affiliate:create-admin --additional` and `affiliate:set-user-status` ([operations.md](operations.md#staff-accounts)). To change a role, disable the account and create a new one. |
 | Multi-factor sign-in for staff | Optional in the specification. A stolen staff password is enough to sign in. | Long unique passwords, few Super Administrators, and disable leavers promptly. |
 | Payout through a provider API | Finance sends each payout in the bank, eSewa or Khalti portal and records the reference. | This is the documented manual process ([ADR 0009](adr/0009-payouts.md)). |
-| Marketing assets library, campaigns screen | Affiliates get links and coupons but no banners or media kit from the system. | Share assets outside the system. |
+| Marketing assets library, campaigns | Affiliates get links and coupons but no banners or media kit from the system. There are no dated campaigns with their own commission. | Share assets outside the system; use coupons and per-affiliate rules for promotions. |
+| Fraud signals and review queue | No automatic flags for unusual ratios, rapid earnings, refund patterns or abnormal payouts. | Holding period plus staff review of each payout request; hold or void suspicious commission. |
+| Affiliate notices for new orders and commission | Affiliates see new orders and commission on their dashboard, but get no email or in-app notice for them. | They are told when commission becomes available and on payout steps. |
+| Public affiliate landing page | The programme is explained only after sign-in. | Link people to the sign-up page. |
 | Tiered, recurring and multi-level commission | Optional in the specification; not built. Multi-level is off by design. | Use plans and per-affiliate rules. |
 | Mobile app (Flutter) | Optional; not built. The API supports bearer tokens for a future app. | The website works on phones. |
 | Category edit and delete | Categories can only be added from the screen. | Add a new category and move products to it. |

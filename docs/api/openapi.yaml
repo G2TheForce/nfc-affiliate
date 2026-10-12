@@ -1101,6 +1101,22 @@ paths:
       security: [{ bearer: [] }, { session: [] }]
       responses:
         '201': { description: Created }
+  /admin/commission-plans/{plan}:
+    patch:
+      summary: Rename a plan or change its description (commission_rules.manage, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: plan, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120, description: Must be unique }
+                description: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Invalid' }
   /admin/affiliates/{affiliate}/plan:
     post:
       summary: Put an affiliate on a plan, or null for the global default (commission_rules.manage, reason required, audited)

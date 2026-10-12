@@ -16,12 +16,12 @@ Status meanings:
 
 | Status | Count |
 |---|---|
-| Done | 251 |
-| Partial | 33 |
-| Not built | 25 |
-| Not built (optional) | 9 |
+| Done | 253 |
+| Partial | 32 |
+| Not built | 24 |
+| Not built (optional) | 10 |
 | Needs external setup | 6 |
-| **Total** | **324** |
+| **Total** | **325** |
 
 The most important gaps:
 
@@ -31,7 +31,7 @@ The most important gaps:
 4. **No public affiliate landing page.** The programme is explained only on `/account/affiliate`, after sign-in. There is no public page with eligibility, terms, payout rules and FAQ.
 5. **Staff and settings are managed from the console and `.env`.** There is no screen for staff accounts, roles or programme settings (payout minimum, holding period and so on).
 6. **Some notifications are missing.** There are none for a new attributed order, a new commission or a commission reversal.
-7. **Deployment and release documents are not in `docs/` yet.** `compose.production.yml` points to `docs/deployment.md` and `CHANGELOG.md` links `docs/phase-9-report.md`, but neither file exists at the time of writing.
+7. The release-readiness assessment is in [release-readiness.md](release-readiness.md).
 8. **Going live needs outside setup:** eSewa and Khalti production keys and one live sandbox run each, a mail provider, legal and tax review, and real commission rules.
 
 ---
@@ -114,7 +114,7 @@ The most important gaps:
 | Requirement | Status | Evidence |
 |---|---|---|
 | Product name, SKU, slug, description, price, status | Done | `products` table; `/admin/products`; `AdminStoreTest::test_super_admin_manages_products_and_changes_are_audited` |
-| Product category | Done | `product_categories`, `/admin/categories` |
+| Product category | Partial | `product_categories`, `/admin/categories`. Categories can be added but not edited or deleted (`docs/known-limitations.md`). |
 | Product images | Not built | No image column or upload |
 | Inventory integration | Not built | No stock column (ADR 0007: stock out of scope). "Where applicable" in the spec. |
 | Shipping requirements per product | Not built | Only a flat delivery charge (`STORE_SHIPPING_FLAT_MINOR`) |
@@ -321,7 +321,8 @@ The most important gaps:
 | `POST /api/v1/referrals/track` | Not built (optional) | A spec example only; `/ref` and `referral_code` at checkout cover tracking |
 | Admin: dashboard, affiliates, approve, reject, suspend, commissions, adjust, payouts, approve, mark paid, reports, audit logs | Done | Matching `/admin/*` routes; adjustments are `/admin/adjustments` |
 | Policies, Form Requests, state checks on privileged actions | Done | Permission middleware, `app/Http/Requests`, service-level state checks under row locks |
-| OpenAPI document | Done | `docs/api/openapi.yaml` covers every `/api/v1` route except `PATCH /admin/commission-plans/{plan}` |
+| Flutter mobile app | Not built (optional) | The API supports bearer tokens (`device_name` on login) for a future app (ADR 0004) |
+| OpenAPI document | Done | `docs/api/openapi.yaml` covers every `/api/v1` route |
 
 ## 18. Security requirements
 
@@ -439,15 +440,15 @@ The most important gaps:
 | 16 | Affiliate dashboard | Partial | Marketing materials missing (section 12) |
 | 17 | Notification system | Partial | Order and commission notices missing (section 19) |
 | 18 | Reports and exports | Done | Section 20 |
-| 19 | Automated tests | Done | 291 test methods (PHPUnit), plus 6 MySQL concurrency tests and load scripts in `tests/Load`. Phase 8 report: 294 passed on SQLite and MySQL. |
+| 19 | Automated tests | Done | 291 `test_` methods (some data-driven) including 6 MySQL concurrency tests, plus load scripts in `tests/Load`. `docs/phase-9-report.md` records 313 passed on SQLite and MySQL. 74 tests in 6 key classes re-run on SQLite for this checklist: all passed. |
 | 20 | Security review checklist | Done | `docs/security-review.md` |
 | 21 | Performance considerations | Done | `docs/load-and-concurrency.md` |
 | 22 | Environment example file | Done | `.env.example` (placeholders only) |
 | 23 | Local installation guide | Done | `docs/local-setup-windows.md`, `README.md` quick start, `docker-compose.yml` |
-| 24 | Production deployment guide | Partial | `docs/production-config.md` and the working `compose.production.yml` stack (nginx, PHP-FPM, queue, scheduler, MySQL, health checks). `docs/deployment.md`, which the compose file points to, is not in the repo yet. |
+| 24 | Production deployment guide | Done | `docs/deployment.md` (versions, database users, `.env`, supervisor, cron, nginx, HTTPS, logs, upgrade, rollback), `docs/production-config.md`, `docs/migrations.md`, `docs/operations.md`, and the `compose.production.yml` stack (nginx, PHP-FPM, queue, scheduler, MySQL, health checks) |
 | 25 | Backup and recovery guide | Done | `docs/backup-and-restore.md`, scripts in `scripts/` |
 | 26 | Administrator guide | Done | `docs/admin-guide.md` |
 | 27 | Affiliate user guide | Done | `docs/affiliate-guide.md` |
 | 28 | API integration guide | Done | `docs/api-guide.md` |
-| 29 | Known limitations and outstanding integrations | Partial | Spread across phase reports and ADRs; no single document yet |
-| 30 | Final release-readiness report | Not built | `docs/phase-9-report.md` is linked from `CHANGELOG.md` but does not exist yet |
+| 29 | Known limitations and outstanding integrations | Done | `docs/known-limitations.md` |
+| 30 | Final release-readiness report | Done | [release-readiness.md](release-readiness.md), [phase-9-report.md](phase-9-report.md) |
