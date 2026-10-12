@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\CommissionPlanController;
 use App\Http\Controllers\Api\V1\Admin\CommissionRuleController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\FraudFlagController;
 use App\Http\Controllers\Api\V1\Admin\OrderController;
 use App\Http\Controllers\Api\V1\Admin\OrderOperationsController;
 use App\Http\Controllers\Api\V1\Admin\PaymentAttemptController;
@@ -209,6 +210,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::post('{commission}/void', [CommissionController::class, 'void'])->middleware($fraud)->name('void');
                     Route::post('{commission}/release', [CommissionController::class, 'release'])->middleware($approve)->name('release');
                 });
+
+                Route::get('fraud-flags', [FraudFlagController::class, 'index'])->middleware($fraud)->name('fraud-flags.index');
+                Route::post('fraud-flags/{flag}/review', [FraudFlagController::class, 'review'])->whereUlid('flag')->middleware($fraud)->name('fraud-flags.review');
 
                 Route::get('adjustments', [AdjustmentController::class, 'index'])->middleware($commissionsView)->name('adjustments.index');
                 Route::post('adjustments', [AdjustmentController::class, 'store'])->middleware('permission:'.Permission::CommissionsAdjust->value)->name('adjustments.store');

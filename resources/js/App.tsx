@@ -32,6 +32,7 @@ import TermsPage from '@/pages/admin/TermsPage';
 import NotificationsPage from '@/pages/shared/NotificationsPage';
 import AdminHomePage from '@/pages/admin/AdminHomePage';
 import AuditLogPage from '@/pages/admin/AuditLogPage';
+import FraudPage from '@/pages/admin/FraudPage';
 import EmailVerifiedPage from '@/pages/auth/EmailVerifiedPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import LoginPage from '@/pages/auth/LoginPage';
@@ -109,6 +110,7 @@ export default function App() {
                                 { to: '/admin/adjustments', label: 'Adjustments', permission: 'commissions.view' },
                                 { to: '/admin/payouts', label: 'Payouts', permission: 'payouts.view' },
                                 { to: '/admin/commission-rules', label: 'Commission rules', permission: ['commission_rules.manage', 'commissions.view'] },
+                                { to: '/admin/fraud', label: 'Fraud review', permission: 'fraud.review' },
                                 { to: '/admin/reconciliation', label: 'Reconciliation', permission: 'reconciliation.view' },
                                 { to: '/admin/referrals', label: 'Referral report', permission: 'reports.view' },
                                 { to: '/admin/coupons', label: 'Coupons', permission: 'campaigns.manage' },
@@ -134,6 +136,7 @@ export default function App() {
                 <Route path="adjustments" element={<AdjustmentsPage />} />
                 <Route path="payouts" element={<AdminPayoutsPage />} />
                 <Route path="commission-rules" element={<CommissionRulesPage />} />
+                <Route path="fraud" element={<FraudPage />} />
                 <Route path="reconciliation" element={<ReconciliationPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="products" element={<ProductsPage />} />

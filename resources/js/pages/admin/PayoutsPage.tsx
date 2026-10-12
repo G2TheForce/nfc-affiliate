@@ -16,6 +16,7 @@ interface Summary {
 
 interface Detail extends StaffPayout {
     destination_details: Record<string, string | null> | null;
+    open_fraud_flags: { id: string; signal_label: string; severity: string; detected_at: string }[];
     commissions: { id: string; order_number: string | null; product: string | null; amount_minor: number; status: string }[];
     ledger: LedgerEntry[];
 }
@@ -177,6 +178,11 @@ export default function PayoutsPage() {
                             {detail.affiliate.display_name} ({detail.affiliate.referral_code})
                             {detail.affiliate.status !== 'approved' && <span className="text-danger"> · membership {detail.affiliate.status}</span>}
                         </p>
+                        {detail.open_fraud_flags.length > 0 && (
+                            <Alert tone="error">
+                                Open fraud flags on this affiliate: {detail.open_fraud_flags.map((f) => f.signal_label).join('; ')}. Check them before approving or paying.
+                            </Alert>
+                        )}
                         {detail.destination_details ? (
                             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-line p-3">
                                 {Object.entries(DETAIL_LABELS).map(([key, label]) =>
