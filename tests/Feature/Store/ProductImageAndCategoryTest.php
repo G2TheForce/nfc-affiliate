@@ -62,7 +62,9 @@ class ProductImageAndCategoryTest extends TestCase
         auth()->forgetGuards();
         $this->get('/media/products/01J0000000000000000000000A.png')->assertNotFound();
         // Anything else under /media is just the web app, never a stored file.
-        $this->get('/media/products/..%2F.env')->assertDontSee('APP_KEY');
+        // (withoutVite: CI runs without built assets, which would render an error page.)
+        $this->withoutVite();
+        $this->get('/media/products/..%2F.env')->assertOk()->assertHeader('Content-Type', 'text/html; charset=utf-8')->assertDontSee('APP_KEY');
 
         $this->actingAs($this->userWithRole(Role::Support))
             ->post("/api/v1/admin/products/{$product->public_id}/image", ['image' => $this->png()], ['Accept' => 'application/json'])->assertForbidden();
