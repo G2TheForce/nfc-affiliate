@@ -1,0 +1,102 @@
+# Optional production stack: nginx, PHP-FPM, queue worker, scheduler and MySQL 8.
+# See docs/deployment.md ("Docker Compose"). Quick start on the server:
+#   cp .env.example .env   # then fill it in (APP_KEY, DB_PASSWORD, DB_ROOT_PASSWORD, mail, payments)
+#   docker compose -f compose.production.yml build
+#   docker compose -f compose.production.yml up -d mysql
+#   docker compose -f compose.production.yml run --rm app php artisan migrate --force --seed
+#   docker compose -f compose.production.yml run --rm app php artisan affiliate:create-admin
+#   docker compose -f compose.production.yml up -d
+#
+# Only nginx publishes a port, on 127.0.0.1 by default: put your HTTPS reverse proxy
+# (Caddy, nginx with certbot, or a load balancer) in front of it. MySQL is never published.
+
+x-app: &app
+  image: nfc-affiliate-app:${APP_IMAGE_TAG:-latest}
+  pull_policy: never
+  env_file: ${APP_ENV_FILE:-.env}
+  environment:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: 3306
+    LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
+  volumes:
+    - app-storage:/var/www/html/storage
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *app
+    # The queue and scheduler run this same image.
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=60", "--max-time=3600", "--sleep=3"]
+    stop_grace_period: 70s
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    image: nfc-affiliate-web:${APP_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/up >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    # No "ports": reachable only from the other containers on this network.
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  app-storage:
+  mysql-data:

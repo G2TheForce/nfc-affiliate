@@ -125,7 +125,7 @@ export default function PayoutsPage() {
             {notice && <Alert tone="success">{notice}</Alert>}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                 <Stat label="Available" value={formatMoney(summary.available_minor, c)} hint={`Minimum payout ${formatMoney(summary.minimum_minor, c)}`} />
-                <Stat label="In progress" value={formatMoney(summary.reserved_minor, c)} hint="Requested, not yet sent" />
+                <Stat label="In payout" value={formatMoney(summary.reserved_minor, c)} hint="Requested, not yet sent" />
                 <Stat label="Paid out" value={formatMoney(summary.paid_minor, c)} />
             </div>
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This describes what is built now (Phases 1 and 2). The full target design is in [phase-0-plan.md](phase-0-plan.md).
+This describes release 1.0.0 (Phases 1 to 9). The full target design is in [phase-0-plan.md](phase-0-plan.md).
 
 ## Overview
 
@@ -40,7 +40,7 @@ Users have an internal auto-increment `id`, which never leaves the server, and a
 
 `audit_logs` is append-only. The model throws on update or delete, and in production the database user should have only `INSERT, SELECT` on that table. `AuditLogger` redacts keys that look like secrets (password, token, secret, signature, api key, account number, card) and stores IP addresses as an HMAC keyed with `APP_KEY`, not as the raw address.
 
-Logged now: `auth.registered`, `auth.login`, `auth.login_failed`, `auth.logout`, `auth.email_verified`, `auth.password_reset`, `admin.bootstrap_created`.
+About 50 actions are logged: sign-in and account events, every membership change, rule, plan, coupon and product change, payment confirmations, refunds, disputes, fulfilment steps, commission holds, voids and adjustments, payout steps, payout-detail views and changes, exports and manual attribution. `grep -rhoE "audit->log\('[a-z_.]+'" app | sort -u` lists them.
 
 ## Affiliate onboarding (Phase 2)
 
@@ -128,6 +128,8 @@ Validation errors use Laravel's standard shape:
 | staff "check with provider now" | 20/min per user |
 | on-demand reconciliation | 6/min per user |
 | payout request, payout details change | 6/min per user |
+| affiliate application, closing own membership | 6/min per user |
+| referral link creation | 30/min per user |
 | `exports` (report CSV/XLSX) | 10/min per user |
 | referral clicks | recorded up to 30/min per IP; beyond that the visitor is redirected without a click |
 
@@ -151,17 +153,19 @@ Business defaults (timezone, currency, attribution window, holding period, payou
 ```
 app/Domain/Audit          AuditLogger
 app/Domain/Affiliates     Membership lifecycle
-app/Domain/Store          Checkout, coupons, order numbers, cancellation
-app/Domain/Referrals      Click tracking, attribution, events, reports
-app/Domain/Payments       Manual payment confirmation, refunds
-app/Domain/Commissions    Rules, calculation, lifecycle, ledger, adjustments, reconciliation
-app/Enums                 Role, Permission, UserStatus
+app/Domain/Store          Checkout, coupons, order numbers, cancellation, fulfilment
+app/Domain/Referrals      Click tracking, bot filtering, attribution, manual attribution, reports
+app/Domain/Payments       Manual confirmation, eSewa/Khalti gateways, PaymentRecorder, refunds, disputes
+app/Domain/Commissions    Rules, calculation, lifecycle, maturation, ledger, adjustments, reconciliation
+app/Domain/Payouts        Payout methods (encrypted) and payouts
+app/Domain/Reporting      Metrics, report registry, CSV/XLSX export
+app/Enums                 Roles, permissions and every status (orders, payments, commissions, payouts, ...)
 app/Support/Authorization PermissionMatrix
-app/Http/Controllers/Api/V1/{Auth,Admin}
-app/Http/Requests/Auth    Form Requests
+app/Http/Controllers/Api/V1/{Auth,Admin,Affiliate,Store}
+app/Http/Requests         Form Requests (Auth, Admin, Affiliate, Store)
 app/Http/Resources        API Resources (public_id only, no secrets)
-app/Notifications/Auth    Queued verification and reset emails
-app/Console/Commands      affiliate:create-admin, affiliate:permissions-matrix, retention, commission jobs
+app/Notifications         Queued mail: Auth, Affiliate, Store, Finance, Payouts
+app/Console/Commands      create-admin, permissions-matrix, mature/reconcile commissions, recheck payments, prune referral data
 resources/js              React app (auth pages, account area, staff area)
 docs/                     Plans, ADRs, API spec, guides
 ```

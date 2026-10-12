@@ -62,7 +62,7 @@ class AffiliateController extends Controller
 
     public function approve(MembershipActionRequest $request, AffiliateProfile $affiliate): AffiliateDetailResource
     {
-        $this->membership->approve($affiliate, $request->user(), $request->validated('internal_note'));
+        $this->membership->approve($affiliate, $request->user(), $request->validated('internal_note'), $request->validated('reason'));
 
         return $this->detail($affiliate);
     }

@@ -21,6 +21,7 @@ export default function ProductsPage() {
     const [form, setForm] = useState(EMPTY);
     const [saving, setSaving] = useState(false);
     const [newCategory, setNewCategory] = useState('');
+    const [categoryError, setCategoryError] = useState<string | null>(null);
     const { fieldErrors, message, capture, reset } = useFormErrors();
 
     const load = () =>
@@ -78,10 +79,17 @@ export default function ProductsPage() {
         e.preventDefault();
         const name = newCategory.trim();
         if (!name) return;
-        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        await api('/admin/categories', { method: 'POST', body: { name, slug } }).catch(() => undefined);
-        setNewCategory('');
-        await load();
+        // A name in Nepali script has no Latin letters for the web address, so it gets a generated one.
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `category-${Date.now().toString(36)}`;
+        setCategoryError(null);
+        try {
+            await api('/admin/categories', { method: 'POST', body: { name, slug } });
+            setNewCategory('');
+            await load();
+        } catch (err) {
+            const first = err instanceof ApiError ? Object.values(err.errors)[0]?.[0] : undefined;
+            setCategoryError(first ?? (err instanceof ApiError ? err.message : 'Could not add the category.'));
+        }
     };
 
     if (error) return <Alert tone="error">{error}</Alert>;
@@ -142,6 +150,11 @@ export default function ProductsPage() {
                         Add
                     </Button>
                 </form>
+                {categoryError && (
+                    <div className="mt-3">
+                        <Alert tone="error">{categoryError}</Alert>
+                    </div>
+                )}
             </Card>
             <Modal title={editing === 'new' ? 'New product' : 'Edit product'} open={editing !== null} onClose={() => setEditing(null)}>
                 <form onSubmit={save} className="max-h-[70vh] space-y-3 overflow-y-auto">

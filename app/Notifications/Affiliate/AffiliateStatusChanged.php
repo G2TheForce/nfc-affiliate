@@ -49,7 +49,7 @@ class AffiliateStatusChanged extends Notification implements ShouldQueue
             ->line($line);
 
         if ($this->publicReason) {
-            $mail->line('Reason: '.$this->publicReason);
+            $mail->line($this->reasonLabel().$this->publicReason);
         }
 
         return $mail->action('Open your account', rtrim((string) config('affiliate.frontend_url'), '/').'/account/affiliate');
@@ -65,10 +65,18 @@ class AffiliateStatusChanged extends Notification implements ShouldQueue
         return [
             'type' => 'affiliate.status_changed',
             'title' => $subject,
-            'body' => $line.($this->publicReason ? ' Reason: '.$this->publicReason : ''),
+            'body' => $line.($this->publicReason ? ' '.$this->reasonLabel().$this->publicReason : ''),
             'status' => $this->to->value,
             'link' => '/account/affiliate',
         ];
+    }
+
+    /** An approval carries an optional welcome message rather than a reason. */
+    private function reasonLabel(): string
+    {
+        return $this->from === AffiliateStatus::Pending && $this->to === AffiliateStatus::Approved
+            ? 'Message from the team: '
+            : 'Reason: ';
     }
 
     /**

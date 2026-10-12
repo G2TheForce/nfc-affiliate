@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.0.0-phase7
+  version: 1.0.0
   description: |
-    Phases 1-6. Money is integer minor units (paisa) with a currency code.
+    Release 1.0.0 (Phases 1-9). Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
     API clients: send `device_name` to login or register and use the returned bearer token.
     All errors are JSON. Validation errors return 422 with `message` and `errors`.
@@ -12,7 +12,7 @@ servers:
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }
-    session: { type: apiKey, in: cookie, name: laravel_session }
+    session: { type: apiKey, in: cookie, name: nfc-affiliates-session, description: 'Cookie name comes from APP_NAME (default nfc-affiliates-session)' }
   schemas:
     User:
       type: object
@@ -676,7 +676,7 @@ paths:
                 coupon_code: { type: [string, 'null'] }
                 referral_code: { type: [string, 'null'], description: An affiliate's referral code or slug }
       responses:
-        '201': { description: 'Created. meta.access_token (guests) lets the browser pay and follow this order; it is shown only once.', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' }, meta: { type: object, properties: { access_token: { type: string } } } } } } } }
+        '201': { description: 'Created. meta.access_token lets the browser pay and follow this order. It is returned on every checkout; a replay with the same Idempotency-Key issues a new token that replaces the old one.', content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Order' }, meta: { type: object, properties: { access_token: { type: string } } } } } } } }
         '200': { description: Replay of an earlier request with the same Idempotency-Key }
         '409': { description: Idempotency-Key reused for a different request }
         '422': { $ref: '#/components/responses/Invalid' }
@@ -718,7 +718,7 @@ paths:
         - { name: order, in: path, required: true, schema: { type: string } }
         - { name: access_token, in: query, schema: { type: string } }
       responses:
-        '200': { description: 'data: { paid, order_status, attempt: { provider, status, outcome: paid|pending|failed|checking } | null }' }
+        '200': { description: 'data: { paid, order_status, order_status_label, attempt: { provider, status, outcome: paid|pending|failed|checking } | null }' }
         '404': { description: Unknown order or wrong access token }
   /orders:
     get:
@@ -933,7 +933,7 @@ paths:
               required: [method, reference, amount_minor]
               properties:
                 method: { type: string, enum: [bank_transfer, cash_on_delivery, esewa, khalti, fonepay, other] }
-                reference: { type: string, maxLength: 100 }
+                reference: { type: string, minLength: 3, maxLength: 100 }
                 amount_minor: { type: integer, description: Must equal the order total }
                 note: { type: [string, 'null'] }
       responses:
@@ -953,8 +953,8 @@ paths:
               type: object
               required: [reference, reason]
               properties:
-                reference: { type: string, maxLength: 100 }
-                reason: { type: string }
+                reference: { type: string, minLength: 3, maxLength: 100 }
+                reason: { type: string, minLength: 5, maxLength: 500 }
                 items: { type: array, items: { type: object, required: [item_id, amount_minor], properties: { item_id: { type: string }, amount_minor: { type: integer, minimum: 1 } } } }
                 shipping_minor: { type: integer, minimum: 0 }
       responses:
@@ -1101,6 +1101,22 @@ paths:
       security: [{ bearer: [] }, { session: [] }]
       responses:
         '201': { description: Created }
+  /admin/commission-plans/{plan}:
+    patch:
+      summary: Rename a plan or change its description (commission_rules.manage, audited)
+      security: [{ bearer: [] }, { session: [] }]
+      parameters: [{ name: plan, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120, description: Must be unique }
+                description: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Invalid' }
   /admin/affiliates/{affiliate}/plan:
     post:
       summary: Put an affiliate on a plan, or null for the global default (commission_rules.manage, reason required, audited)

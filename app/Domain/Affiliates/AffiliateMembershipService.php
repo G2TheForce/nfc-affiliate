@@ -62,9 +62,9 @@ class AffiliateMembershipService
         });
     }
 
-    public function approve(AffiliateProfile $profile, User $actor, ?string $internalNote = null): AffiliateProfile
+    public function approve(AffiliateProfile $profile, User $actor, ?string $internalNote = null, ?string $message = null): AffiliateProfile
     {
-        return $this->transition($profile, AffiliateStatus::Approved, $actor, [AffiliateStatus::Pending], null, $internalNote, 'affiliate.approved');
+        return $this->transition($profile, AffiliateStatus::Approved, $actor, [AffiliateStatus::Pending], $message, $internalNote, 'affiliate.approved');
     }
 
     public function reject(AffiliateProfile $profile, User $actor, string $publicReason, ?string $internalNote = null): AffiliateProfile
