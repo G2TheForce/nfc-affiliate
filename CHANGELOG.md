@@ -10,6 +10,12 @@ A new look for the whole app, and the store becomes installable as a phone app.
 - **Sign-in and account screens**: a split sign-in layout with brand artwork, sticky staff and account navigation with an active marker, initials avatar, and an illustrated 404 page.
 - **Installable app (PWA)**: `/manifest.webmanifest` (named after `APP_NAME`), a service worker (`public/sw.js`) that caches only hashed build files and icons and shows `public/offline.html` when there is no connection. API calls, payments and personal data are never cached.
 - Pages now load on first visit (route code splitting), so shoppers do not download the staff screens.
+- **Digital tap profiles** ([ADR 0012](docs/adr/0012-tap-profiles.md)): every verified user can publish the page their NFC card opens, at `/p/{handle}`, with call, WhatsApp, email and website buttons, social links, six colour themes and **Save contact** (a vCard). The editor (`/account/card`) has a live preview, a QR code to download, **Write to an NFC tag** on Android Chrome, and 30-day views and saves. An approved affiliate's profile links to their referral code, so every tap can earn them commission. Link previews show the person's name.
+- API spec version 1.3.0 with `GET /cards/{handle}`, `GET/PUT /card-profile` and `GET /card-profile/stats`.
+
+### Database changes
+
+One new migration creates `card_profiles` and `card_profile_daily_stats`. It does not change existing data.
 
 ## 1.2.0
 

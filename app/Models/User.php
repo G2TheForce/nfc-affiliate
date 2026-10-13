@@ -91,6 +91,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(AffiliateProfile::class);
     }
 
+    public function cardProfile(): HasOne
+    {
+        return $this->hasOne(CardProfile::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
