@@ -58,6 +58,9 @@ Added in 1.2.0:
 | `product.image_removed` | A product photo is removed | none |
 | `product_category.updated` | A category is renamed, hidden or shown (not written when nothing changed) | the changed columns |
 | `product_category.deleted` | An unused category is deleted | `name`, `slug` |
+| `admin.affiliate_password_reset_sent` | Staff email an affiliate a password reset link | none |
+| `admin.affiliate_signed_out` | Staff sign an affiliate out of every device | `devices` |
+| `admin.affiliate_verification_resent` | Staff resend an affiliate's verification email | none |
 
 `grep -rhoE "log\('[a-z_]+\.[a-z_.]+'" app | sort -u` lists them all.
 

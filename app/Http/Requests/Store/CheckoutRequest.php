@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Store;
 
+use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CheckoutRequest extends FormRequest
@@ -23,6 +24,13 @@ class CheckoutRequest extends FormRequest
 
     public function messages(): array
     {
-        return ['customer_phone.regex' => 'Enter the phone number with country code, for example +9779812345678.'];
+        return ['customer_phone.regex' => 'Enter a mobile number such as 9812345678, or include the country code, for example +9779812345678.'];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('customer_phone')) {
+            $this->merge(['customer_phone' => PhoneNumber::normalize($this->input('customer_phone'))]);
+        }
     }
 }

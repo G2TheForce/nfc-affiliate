@@ -16,8 +16,9 @@ class AffiliateDetailResource extends JsonResource
 {
     /**
      * @param  list<array<string, mixed>>  $duplicates
+     * @param  array<string, mixed>|null  $account  sign-in summary from AffiliateAccountAccess
      */
-    public function __construct(AffiliateProfile $resource, private readonly array $duplicates = [])
+    public function __construct(AffiliateProfile $resource, private readonly array $duplicates = [], private readonly ?array $account = null)
     {
         parent::__construct($resource);
     }
@@ -70,6 +71,7 @@ class AffiliateDetailResource extends JsonResource
                 'accepted_at' => $a->accepted_at?->toIso8601String(),
             ])->values(),
             'possible_duplicates' => $this->duplicates,
+            'account' => $this->account,
             'can' => [
                 'review' => $staff->can(Permission::AffiliatesReview->value),
                 'suspend' => $staff->can(Permission::AffiliatesSuspend->value),
