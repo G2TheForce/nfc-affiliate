@@ -36,16 +36,31 @@ class CardProfilePresenter
         $code = $affiliate?->status->isEligibleToEarn() ? $affiliate->referral_code : null;
 
         return $this->fields($profile) + [
-            'socials' => array_map(
-                fn (string $network, string $value) => ['network' => $network, 'url' => $this->socialUrl($network, $value)],
-                array_keys($profile->socials ?? []),
-                array_values($profile->socials ?? []),
-            ),
+            'socials' => $this->orderedSocials($profile),
             'public_url' => $this->publicUrl($profile),
             'vcard_url' => url('/p/'.$profile->handle.'/contact.vcf'),
             // An affiliate's card doubles as their referral link (ADR 0012).
             'get_a_card_url' => $code ? '/ref/'.$code : '/shop',
         ];
+    }
+
+    /**
+     * Social links in a fixed order. MySQL's JSON type does not keep key
+     * order, so the order comes from CardProfile::SOCIALS, not storage.
+     *
+     * @return list<array{network: string, url: string}>
+     */
+    public function orderedSocials(CardProfile $profile): array
+    {
+        $socials = $profile->socials ?? [];
+        $out = [];
+        foreach (CardProfile::SOCIALS as $network) {
+            if (isset($socials[$network])) {
+                $out[] = ['network' => $network, 'url' => $this->socialUrl($network, $socials[$network])];
+            }
+        }
+
+        return $out;
     }
 
     public function publicUrl(CardProfile $profile): string

@@ -31,8 +31,8 @@ class VCard
             $lines[] = 'URL:'.$this->escape($profile->website);
         }
         $lines[] = 'URL;TYPE=profile:'.$this->escape($presenter->publicUrl($profile));
-        foreach ($profile->socials ?? [] as $network => $value) {
-            $lines[] = 'X-SOCIALPROFILE;TYPE='.$network.':'.$this->escape($presenter->socialUrl($network, $value));
+        foreach ($presenter->orderedSocials($profile) as $social) {
+            $lines[] = 'X-SOCIALPROFILE;TYPE='.$social['network'].':'.$this->escape($social['url']);
         }
         if ($profile->location) {
             $lines[] = 'ADR;TYPE=WORK:;;;'.$this->escape($profile->location).';;;';
