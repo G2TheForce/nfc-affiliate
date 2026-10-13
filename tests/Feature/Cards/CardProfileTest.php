@@ -112,7 +112,7 @@ class CardProfileTest extends TestCase
 
         $profile = CardProfile::query()->first();
         $this->assertSame(1, $profile->taps_total);
-        $this->assertSame(1, $profile->dailyStats()->sum('taps'));
+        $this->assertSame(1, (int) $profile->dailyStats()->sum('taps'));
     }
 
     public function test_unpublished_profiles_and_disabled_owners_are_not_found(): void
