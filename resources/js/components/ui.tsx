@@ -11,7 +11,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary'; loading?: boolean }) {
     const styles =
         variant === 'primary'
-            ? 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-500/60'
+            ? 'bg-primary text-white shadow-sm shadow-primary/30 hover:bg-primary-hover disabled:bg-primary/60'
             : 'border border-line bg-surface text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50';
     return (
         <button
@@ -76,7 +76,7 @@ export function Alert({ tone = 'info', children }: { tone?: 'info' | 'success' |
 
 export function Card({ title, children }: { title?: string; children: ReactNode }) {
     return (
-        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+        <section className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
             {title && <h2 className="mb-3 text-base font-semibold text-ink">{title}</h2>}
             {children}
         </section>
@@ -157,7 +157,7 @@ export function Select({
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
     return (
-        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-signal before:opacity-70">
             <p className="text-sm text-muted">{label}</p>
             <p className="mt-1 text-2xl font-semibold text-ink tabular-nums">{value}</p>
             {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
@@ -218,7 +218,7 @@ export function Modal({ title, open, onClose, children }: { title: string; open:
     if (!open) return null;
     return (
         <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-night/60 backdrop-blur-sm p-0 sm:items-center sm:p-4"
             onKeyDown={(e) => e.key === 'Escape' && onClose()}
         >
             <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-lg rounded-t-2xl bg-surface p-6 shadow-xl sm:rounded-2xl">

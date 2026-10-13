@@ -1,6 +1,17 @@
 # Changelog
 
-## 1.2.0 (Unreleased)
+## 1.3.0 (Unreleased)
+
+A new look for the whole app, and the store becomes installable as a phone app.
+
+- **Visual direction "midnight holographic"**: deep indigo brand with a cyan-to-violet signal gradient, a new logo, favicon and app icons, and a share preview image (`public/og-image.jpg`) for links posted on social media.
+- **Dark mode** everywhere, following the device or chosen with the theme button in each header. The choice is kept in the browser. The theme is applied before the page draws (`public/theme-init.js`, a file so the production CSP still allows no inline scripts).
+- **Storefront**: a home hero with an animated card-and-phone scene, illustrated "how it works" steps, a footer, generated card artwork for products without a photo, and a product page with a 3D tilt preview and "Preview with your name".
+- **Sign-in and account screens**: a split sign-in layout with brand artwork, sticky staff and account navigation with an active marker, initials avatar, and an illustrated 404 page.
+- **Installable app (PWA)**: `/manifest.webmanifest` (named after `APP_NAME`), a service worker (`public/sw.js`) that caches only hashed build files and icons and shows `public/offline.html` when there is no connection. API calls, payments and personal data are never cached.
+- Pages now load on first visit (route code splitting), so shoppers do not download the staff screens.
+
+## 1.2.0
 
 Adds the staff and settings screens, profile editing, and product photos (Phase 11). [Report](docs/phase-11-report.md)
 

@@ -78,7 +78,7 @@ export default function AffiliatesListPage() {
                         aria-selected={status === t.value}
                         onClick={() => update({ status: t.value, page: '' })}
                         className={`min-h-9 rounded-full border px-3 text-sm font-medium ${
-                            status === t.value ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-surface text-ink hover:bg-canvas'
+                            status === t.value ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-ink hover:bg-canvas'
                         }`}
                     >
                         {t.label}

@@ -18,7 +18,7 @@ export function DailyBars({ title, data, valueKey }: { title: string; data: { da
                 {data.map((d) => (
                     <div key={d.date} className="group relative flex h-full flex-1 items-end" title={`${formatDate(d.date)}: ${d[valueKey]}`}>
                         <div
-                            className="w-full rounded-t bg-brand-500 group-hover:bg-brand-700"
+                            className="w-full rounded-t bg-brand-500 group-hover:bg-primary"
                             style={{ height: d[valueKey] ? `${Math.max(4, (d[valueKey] / max) * 100)}%` : 0 }}
                         />
                     </div>

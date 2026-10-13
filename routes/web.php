@@ -3,6 +3,7 @@
 use App\Domain\Store\ProductImages;
 use App\Http\Controllers\Payments\PaymentReturnController;
 use App\Http\Controllers\ReferralRedirectController;
+use App\Http\Controllers\WebManifestController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,11 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 Route::view('/login', 'app')->name('login');
 Route::view('/verify-email', 'app')->name('verification.notice');
 Route::view('/reset-password', 'app')->name('password.reset');
+
+// Install manifest for the storefront as a phone app (PWA).
+Route::get('/manifest.webmanifest', WebManifestController::class)
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
+    ->name('manifest');
 
 // Public referral links: record the click, then redirect to an internal store path.
 Route::get('/ref/{code}/{link?}', ReferralRedirectController::class)

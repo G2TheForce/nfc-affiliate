@@ -17,3 +17,10 @@ if (root) {
         </StrictMode>,
     );
 }
+
+// Installable app and offline page; production builds only, so the Vite dev server is unaffected.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+    });
+}
