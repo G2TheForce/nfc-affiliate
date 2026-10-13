@@ -22,14 +22,20 @@ function readCookie(name: string): string | null {
 
 let csrfReady: Promise<void> | null = null;
 
-async function ensureCsrfCookie(): Promise<void> {
-    if (readCookie('XSRF-TOKEN')) return;
+async function ensureCsrfCookie(refresh = false): Promise<void> {
+    if (!refresh && readCookie('XSRF-TOKEN')) return;
     csrfReady ??= fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' }).then(() => undefined);
     await csrfReady;
     csrfReady = null;
 }
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+type ApiOptions = { method?: string; body?: unknown; headers?: Record<string, string> };
+
+export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+    return request<T>(path, options, false);
+}
+
+async function request<T>(path: string, options: ApiOptions, retried: boolean): Promise<T> {
     const method = (options.method ?? 'GET').toUpperCase();
     const headers: Record<string, string> = {
         Accept: 'application/json',
@@ -52,6 +58,13 @@ export async function api<T>(path: string, options: { method?: string; body?: un
         credentials: 'same-origin',
         body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
     });
+
+    // 419: the XSRF cookie is stale (expired session, or one issued under an
+    // older APP_KEY). Fetch a fresh one and retry once.
+    if (response.status === 419 && method !== 'GET' && !retried) {
+        await ensureCsrfCookie(true);
+        return request<T>(path, options, true);
+    }
 
     const data = response.status === 204 ? null : await response.json().catch(() => null);
 
