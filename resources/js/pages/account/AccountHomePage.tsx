@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useAuth } from '@/auth/AuthContext';
+import { CardArt } from '@/components/brand';
 import { Card } from '@/components/ui';
 
 export default function AccountHomePage() {
@@ -8,6 +9,21 @@ export default function AccountHomePage() {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-semibold text-ink">Welcome, {user?.name}</h1>
+            <Link
+                to="/account/card"
+                className="bg-night-sky group flex flex-col items-center gap-5 overflow-hidden rounded-3xl p-6 text-white sm:flex-row sm:p-8"
+            >
+                <div className="w-48 shrink-0 rotate-[-6deg] rounded-xl shadow-2xl shadow-signal-violet/30 transition group-hover:rotate-0">
+                    <CardArt seed="account" palette={['#0b1026', '#4f46e5', '#22d3ee']} title={user?.name} />
+                </div>
+                <div className="space-y-2">
+                    <p className="text-lg font-semibold">Your tap card</p>
+                    <p className="text-sm text-slate-300">
+                        Set up the page your NFC card opens: call and WhatsApp buttons, socials and Save contact. Get a QR code, or write it to a tag from your phone.
+                    </p>
+                    <span className="inline-block text-sm font-semibold text-cyan-200">Set up or edit →</span>
+                </div>
+            </Link>
             <Card title="Affiliate programme">
                 <p className="text-sm text-muted">
                     Promote our NFC cards and earn a commission on eligible paid orders from your referrals.

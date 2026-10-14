@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NFC Affiliates API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Release 1.2.0 (Phases 1-11). 1.1.0 added campaigns, marketing materials, fraud flags and the public affiliate programme facts. 1.2.0 adds staff accounts (invite, role change, disable), programme settings, editing your own profile and password, product photos, and category rename, hide and delete. Money is integer minor units (paisa) with a currency code.
     Web app: Sanctum session cookie plus X-XSRF-TOKEN.
@@ -841,6 +841,53 @@ paths:
                       terms:
                         type: [object, 'null']
                         properties: { version: { type: string }, title: { type: string }, body: { type: string }, published_at: { type: string, format: date-time } }
+  /cards/{handle}:
+    get:
+      security: []
+      summary: A published tap profile (what an NFC card opens). Counts one tap per device per half hour; bots are not counted. 404 when unpublished or the owner is disabled.
+      parameters:
+        - { name: handle, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9-]{3,30}$' } }
+      responses:
+        '200':
+          description: 'data: handle, display_name, headline, company, bio, phone, whatsapp, email, website, location, theme, socials [{ network, url }], public_url, vcard_url, get_a_card_url (the owner''s /ref/{code} while they are an approved affiliate, else /shop)'
+        '404': { description: Not found }
+  /card-profile:
+    get:
+      summary: The signed-in user's own tap profile, or null (verified email required)
+      responses:
+        '200': { description: 'data: profile fields plus socials (object by network), is_published, taps_total, saves_total, public_url, updated_at; or null' }
+    put:
+      summary: Create or update the signed-in user's tap profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [handle, display_name, theme, is_published]
+              properties:
+                handle: { type: string, description: '3-30 lowercase letters, numbers and single hyphens; unique; some words are reserved' }
+                display_name: { type: string, maxLength: 80 }
+                headline: { type: [string, 'null'], maxLength: 100 }
+                company: { type: [string, 'null'], maxLength: 100 }
+                bio: { type: [string, 'null'], maxLength: 500 }
+                phone: { type: [string, 'null'] }
+                whatsapp: { type: [string, 'null'] }
+                email: { type: [string, 'null'], format: email }
+                website: { type: [string, 'null'], description: http or https URL }
+                location: { type: [string, 'null'], maxLength: 100 }
+                socials: { type: object, description: 'Keys facebook, instagram, linkedin, tiktok, youtube, x; each a username or https:// link' }
+                theme: { type: string, enum: [aurora, violet, teal, gold, graphite, ocean] }
+                is_published: { type: boolean }
+      responses:
+        '200': { description: The saved profile }
+        '422': { description: Validation error }
+  /card-profile/stats:
+    get:
+      summary: Taps and contact saves for the last 30 days (business time zone), oldest first
+      responses:
+        '200': { description: 'data: { taps_total, saves_total, daily: [{ day, taps, saves }] }' }
+        '404': { description: No profile yet }
   /store/cart/quote:
     post:
       security: []

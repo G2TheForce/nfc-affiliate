@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\ProfileController;
+use App\Http\Controllers\Api\V1\Cards\MyCardProfileController;
+use App\Http\Controllers\Api\V1\Cards\PublicCardProfileController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Store\AffiliateProgrammeController;
 use App\Http\Controllers\Api\V1\Store\CatalogController;
@@ -83,6 +85,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->whereUlid('order')->name('orders.payments.status');
     });
 
+    // Public tap profiles: what a customer's NFC card opens. Each view counts as a tap.
+    Route::get('cards/{handle}', [PublicCardProfileController::class, 'show'])
+        ->where('handle', '[a-z0-9-]{3,30}')->middleware('throttle:store')->name('cards.show');
+
     // Authenticated endpoints
     Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
@@ -98,6 +104,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/', [NotificationController::class, 'index'])->name('index');
             Route::post('read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
             Route::post('{id}/read', [NotificationController::class, 'markRead'])->whereUuid('id')->name('read');
+        });
+
+        // The signed-in user's own tap profile.
+        Route::prefix('card-profile')->name('card-profile.')->middleware('verified')->group(function () {
+            Route::get('/', [MyCardProfileController::class, 'show'])->name('show');
+            Route::put('/', [MyCardProfileController::class, 'update'])->middleware('throttle:20,1')->name('update');
+            Route::get('stats', [MyCardProfileController::class, 'stats'])->name('stats');
         });
 
         Route::get('orders', [CustomerOrderController::class, 'index'])->name('orders.index');

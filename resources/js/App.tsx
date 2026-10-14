@@ -47,6 +47,8 @@ const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
+const TapProfilePage = lazy(() => import('@/pages/public/TapProfilePage'));
+const TapCardPage = lazy(() => import('@/pages/account/TapCardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 import { GuestOnly, RequireAuth } from '@/routes/guards';
 import { Spinner } from '@/components/ui';
@@ -65,6 +67,7 @@ export default function App() {
                     <Route path="/checkout" element={<CheckoutPage />} />
                     <Route path="/order-confirmed" element={<OrderConfirmedPage />} />
                 </Route>
+                <Route path="/p/:handle" element={<TapProfilePage />} />
                 <Route
                     path="/login"
                     element={
@@ -110,6 +113,7 @@ export default function App() {
                                         to: '/account/profile',
                                         label: 'My profile',
                                     },
+                                    { to: '/account/card', label: 'My tap card' },
                                     {
                                         to: '/account/affiliate',
                                         label: 'Affiliate programme',
@@ -155,6 +159,7 @@ export default function App() {
                     <Route path="affiliate" element={<AffiliatePage />} />
                     <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
                     <Route path="profile" element={<ProfilePage />} />
+                    <Route path="card" element={<TapCardPage />} />
                     <Route path="affiliate/links" element={<ReferralLinksPage />} />
                     <Route path="affiliate/marketing" element={<MarketingPage />} />
                     <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
