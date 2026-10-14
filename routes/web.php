@@ -1,8 +1,10 @@
 <?php
 
 use App\Domain\Store\ProductImages;
+use App\Http\Controllers\Api\V1\Cards\PublicCardProfileController;
 use App\Http\Controllers\Payments\PaymentReturnController;
 use App\Http\Controllers\ReferralRedirectController;
+use App\Http\Controllers\WebManifestController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +15,11 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 Route::view('/login', 'app')->name('login');
 Route::view('/verify-email', 'app')->name('verification.notice');
 Route::view('/reset-password', 'app')->name('password.reset');
+
+// Install manifest for the storefront as a phone app (PWA).
+Route::get('/manifest.webmanifest', WebManifestController::class)
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
+    ->name('manifest');
 
 // Public referral links: record the click, then redirect to an internal store path.
 Route::get('/ref/{code}/{link?}', ReferralRedirectController::class)
@@ -35,6 +42,16 @@ Route::get('/media/products/{file}', fn (string $file, ProductImages $images) =>
     ->where('file', '[0-9A-Z]{26}\\.(jpg|png|webp)')
     ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
     ->name('media.product');
+
+// Tap profiles. "Save contact" downloads a vCard; the page itself is the SPA,
+// with the person's name in the share preview.
+Route::get('/p/{handle}/contact.vcf', [PublicCardProfileController::class, 'vcard'])
+    ->where('handle', '[a-z0-9-]{3,30}')
+    ->middleware('throttle:store')
+    ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, ValidateCsrfToken::class])
+    ->name('cards.vcard');
+Route::get('/p/{handle}', [PublicCardProfileController::class, 'page'])
+    ->where('handle', '[A-Za-z0-9-]{1,60}')->name('cards.page');
 
 Route::view('/{any?}', 'app')
     ->where('any', '^(?!api/|up$|sanctum/).*$')

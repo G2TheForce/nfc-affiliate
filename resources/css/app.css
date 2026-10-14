@@ -3,19 +3,32 @@
 @source '../**/*.blade.php';
 @source '../js/**/*.{ts,tsx}';
 
-/* Design tokens. Components use these names, never raw hex values. */
-@theme {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+/* Dark mode follows a class on <html>, set before first paint by public/theme-init.js. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-    --color-brand-50: #eef6ff;
-    --color-brand-100: #d9eaff;
-    --color-brand-500: #2563eb;
-    --color-brand-600: #1d4ed8;
-    --color-brand-700: #1e40af;
+/*
+ * Design tokens. Components use these names, never raw hex values.
+ * Visual direction "midnight holographic": deep indigo brand, with a
+ * cyan-to-violet signal gradient used sparingly for highlights.
+ */
+@theme {
+    --font-sans: 'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #e0e7ff;
+    --color-brand-500: #6366f1;
+    --color-brand-600: #4f46e5;
+    --color-brand-700: #4338ca;
+    /* Solid fills under white text (buttons, badges). Same in both themes. */
+    --color-primary: #4f46e5;
+    --color-primary-hover: #4338ca;
+    --color-signal-cyan: #22d3ee;
+    --color-signal-violet: #a855f7;
+    --color-night: #070a1a;
     --color-ink: #0f172a;
     --color-muted: #475569;
     --color-surface: #ffffff;
-    --color-canvas: #f8fafc;
+    --color-canvas: #f6f7fb;
     --color-line: #e2e8f0;
     --color-success: #15803d;
     --color-warning: #b45309;
@@ -25,11 +38,124 @@
     --color-chart-1: #2a78d6;
     --color-chart-2: #eb6834;
     --color-chart-3: #1baf7a;
+
+    --animate-float: float 6s ease-in-out infinite;
+    --animate-ripple: ripple 2.4s ease-out infinite;
+    --animate-shine: shine 5s linear infinite;
+    --animate-rise: rise 0.5s ease-out both;
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0) rotateX(12deg) rotateY(-18deg);
+        }
+        50% {
+            transform: translateY(-10px) rotateX(8deg) rotateY(-10deg);
+        }
+    }
+    @keyframes ripple {
+        0% {
+            transform: scale(0.6);
+            opacity: 0.7;
+        }
+        100% {
+            transform: scale(1.6);
+            opacity: 0;
+        }
+    }
+    @keyframes shine {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+    @keyframes rise {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 }
 
+/* Dark theme: the same token names, re-pointed. Contrast checked against surface and canvas. */
 @layer base {
+    .dark {
+        color-scheme: dark;
+        --color-brand-50: #1e1b4b;
+        --color-brand-100: #312e81;
+        --color-brand-500: #818cf8;
+        --color-brand-600: #8b93f9;
+        --color-brand-700: #c7d2fe;
+        --color-primary: #5850ec;
+        --color-primary-hover: #4f46e5;
+        --color-ink: #e5e7f0;
+        --color-muted: #9aa4b8;
+        --color-surface: #0f1428;
+        --color-canvas: #080b19;
+        --color-line: #222a45;
+        --color-success: #4ade80;
+        --color-warning: #fbbf24;
+        --color-danger: #f87171;
+        --color-chart-1: #5b9cf0;
+        --color-chart-2: #f08a5d;
+        --color-chart-3: #3fcf98;
+    }
+
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+    }
+
     :focus-visible {
         outline: 2px solid var(--color-brand-500);
         outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+/* The signal gradient: brand highlights, hero text, active accents. Utilities, so variants (before:, hover:) work. */
+@utility bg-signal {
+    background-image: linear-gradient(120deg, var(--color-signal-cyan), var(--color-primary) 50%, var(--color-signal-violet));
+}
+@utility text-signal {
+    background-image: linear-gradient(100deg, var(--color-signal-cyan), var(--color-brand-500) 45%, var(--color-signal-violet));
+    background-clip: text;
+    color: transparent;
+}
+
+@layer components {
+    /* Dark, starry backdrop used for the hero, auth panel and programme banner. */
+    .bg-night-sky {
+        background-color: var(--color-night);
+        background-image:
+            radial-gradient(60rem 30rem at 85% -10%, rgb(168 85 247 / 0.35), transparent 60%),
+            radial-gradient(50rem 30rem at -10% 110%, rgb(34 211 238 / 0.25), transparent 60%),
+            radial-gradient(1px 1px at 20% 30%, rgb(255 255 255 / 0.5), transparent),
+            radial-gradient(1px 1px at 70% 60%, rgb(255 255 255 / 0.4), transparent),
+            radial-gradient(1px 1px at 40% 80%, rgb(255 255 255 / 0.35), transparent);
+    }
+    /* A moving holographic sheen over a card face. */
+    .holo-sheen {
+        background-image: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.28) 45%, rgb(34 211 238 / 0.18) 50%, transparent 60%);
+        background-size: 250% 100%;
+    }
+    .glass {
+        background-color: color-mix(in oklab, var(--color-surface) 78%, transparent);
+        backdrop-filter: saturate(1.4) blur(12px);
     }
 }
