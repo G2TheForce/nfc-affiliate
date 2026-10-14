@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, Outlet, useLocation } from 'react-router';
 import { homePathFor, useAuth } from '@/auth/AuthContext';
-import { Spinner } from '@/components/ui';
+import { Alert, Spinner } from '@/components/ui';
 
 export function RequireAuth({ children, staff = false }: { children: ReactNode; staff?: boolean }) {
     const { user, loading } = useAuth();
@@ -21,4 +21,22 @@ export function GuestOnly({ children }: { children: ReactNode }) {
     if (loading) return <Spinner />;
     if (user) return <Navigate to={user.email_verified ? homePathFor(user) : '/verify-email'} replace />;
     return <>{children}</>;
+}
+
+/**
+ * Affiliate tools need an approved membership. Without it the API answers
+ * 403, so say why instead of showing the raw permission error.
+ */
+export function RequireAffiliate() {
+    const { can } = useAuth();
+    if (can('affiliate.portal')) return <Outlet />;
+
+    return (
+        <Alert tone="info">
+            Referral tools open once your affiliate application is approved.{' '}
+            <Link to="/account/affiliate" className="font-medium underline">
+                See your application
+            </Link>
+        </Alert>
+    );
 }
