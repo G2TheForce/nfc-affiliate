@@ -167,6 +167,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     Route::post('{affiliate}/reinstate', [AffiliateController::class, 'reinstate'])->middleware($suspend)->name('reinstate');
                     Route::post('{affiliate}/deactivate', [AffiliateController::class, 'deactivate'])->middleware($suspend)->name('deactivate');
                     Route::post('{affiliate}/reactivate', [AffiliateController::class, 'reactivate'])->middleware($suspend)->name('reactivate');
+                    Route::post('{affiliate}/account/status', [AffiliateController::class, 'accountStatus'])->middleware($suspend)->name('account.status');
+                    Route::post('{affiliate}/account/password-reset', [AffiliateController::class, 'accountPasswordReset'])->middleware([$suspend, 'throttle:10,1'])->name('account.password-reset');
+                    Route::post('{affiliate}/account/sign-out', [AffiliateController::class, 'accountSignOut'])->middleware($suspend)->name('account.sign-out');
+                    Route::post('{affiliate}/account/verification', [AffiliateController::class, 'accountVerification'])->middleware([$suspend, 'throttle:10,1'])->name('account.verification');
                 });
 
                 $catalog = 'permission:'.Permission::CatalogManage->value;

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Domain\Affiliates\AffiliateAccountAccess;
 use App\Domain\Affiliates\AffiliateMembershipService;
 use App\Domain\Affiliates\DuplicateSignals;
 use App\Enums\AffiliateStatus;
+use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MembershipActionRequest;
 use App\Http\Resources\Admin\AffiliateDetailResource;
@@ -19,6 +21,7 @@ class AffiliateController extends Controller
     public function __construct(
         private readonly AffiliateMembershipService $membership,
         private readonly DuplicateSignals $duplicates,
+        private readonly AffiliateAccountAccess $access,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -110,10 +113,43 @@ class AffiliateController extends Controller
         return $this->detail($affiliate);
     }
 
+    /** Sign-in access (affiliates.suspend): block or allow sign-in. */
+    public function accountStatus(Request $request, AffiliateProfile $affiliate): AffiliateDetailResource
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::enum(UserStatus::class)],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+        $this->access->setStatus($affiliate, UserStatus::from($data['status']), $data['reason'], $request->user());
+
+        return $this->detail($affiliate);
+    }
+
+    public function accountPasswordReset(Request $request, AffiliateProfile $affiliate): AffiliateDetailResource
+    {
+        $this->access->sendPasswordReset($affiliate, $request->user());
+
+        return $this->detail($affiliate);
+    }
+
+    public function accountSignOut(Request $request, AffiliateProfile $affiliate): AffiliateDetailResource
+    {
+        $this->access->signOutEverywhere($affiliate, $request->user());
+
+        return $this->detail($affiliate);
+    }
+
+    public function accountVerification(Request $request, AffiliateProfile $affiliate): AffiliateDetailResource
+    {
+        $this->access->resendVerification($affiliate, $request->user());
+
+        return $this->detail($affiliate);
+    }
+
     private function detail(AffiliateProfile $affiliate): AffiliateDetailResource
     {
-        $affiliate->refresh()->load(['user', 'approver', 'plan', 'statusHistory.actor', 'notes.author', 'termsAcceptances.termsVersion']);
+        $affiliate->refresh()->load(['user.roles', 'approver', 'plan', 'statusHistory.actor', 'notes.author', 'termsAcceptances.termsVersion']);
 
-        return new AffiliateDetailResource($affiliate, $this->duplicates->for($affiliate));
+        return new AffiliateDetailResource($affiliate, $this->duplicates->for($affiliate), $this->access->summary($affiliate));
     }
 }

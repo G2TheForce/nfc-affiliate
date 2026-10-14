@@ -29,7 +29,8 @@ class ProfileTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'user.profile_updated']);
         $this->assertStringNotContainsString('9812345678', json_encode(AuditLog::latest('id')->first()->properties));
 
-        $this->actingAs($user)->patchJson('/api/v1/auth/me', ['phone' => '9812345678'])->assertUnprocessable()->assertJsonValidationErrors('phone');
+        $this->actingAs($user)->patchJson('/api/v1/auth/me', ['phone' => '12345'])->assertUnprocessable()->assertJsonValidationErrors('phone');
+        $this->actingAs($user)->patchJson('/api/v1/auth/me', ['phone' => '981-234 5679'])->assertOk()->assertJsonPath('data.phone', '+9779812345679');
         $this->actingAs($user)->patchJson('/api/v1/auth/me', ['phone' => null])->assertOk()->assertJsonPath('data.phone', null);
     }
 

@@ -270,6 +270,17 @@ All need `catalog.manage`.
 - `PATCH /admin/categories/{category}` with `name` and/or `is_active`. Sending `slug` gets 422: the slug never changes, so shared shop links keep working. A hidden category is left out of `GET /store/categories`; its products stay in the store. Audited as `product_category.updated` in the same transaction, and only when something changed.
 - `DELETE /admin/categories/{category}` returns 204. It is refused with 422 on `category` while the category has products, past order lines or a commission rule. Deleted and audited as `product_category.deleted` in one transaction.
 
+### 11.5 Affiliate sign-in access
+
+All need `affiliates.suspend` (super administrator and affiliate manager). They act on the person's account, not the membership: blocking sign-in leaves the membership, links and balance unchanged, and suspending a membership does not block sign-in. Staff never see or set an affiliate's password. Each returns the affiliate detail (`{"data": AffiliateDetail}`), which now carries `account`: `status` (`active` or `disabled`), `email_verified`, `last_login_at`, `signed_in_devices` (web sessions plus API tokens) and `is_staff`. An account that also holds a staff role, or the caller's own account, gets 422 on `account`; manage those on the Staff screen or the profile page.
+
+- `POST /admin/affiliates/{affiliate}/account/status` with `status` and `reason` (5 to 500 characters). Disabling signs the person out everywhere; sign-in then answers 422 "This account is disabled". Audited as `user.status_changed` with `via: affiliate_screen`.
+- `POST /admin/affiliates/{affiliate}/account/password-reset` emails the standard reset link (10/min, and one per account per minute: a second gets 422 on `account`). Refused with 422 while sign-in is blocked. Audited as `admin.affiliate_password_reset_sent`.
+- `POST /admin/affiliates/{affiliate}/account/sign-out` deletes every session and API token. Audited as `admin.affiliate_signed_out` with `devices`.
+- `POST /admin/affiliates/{affiliate}/account/verification` resends the verification email (10/min); 422 when already verified. Audited as `admin.affiliate_verification_resent`.
+
+Phone numbers (checkout, registration, profile) may now be typed the local way: spaces, dashes, dots and brackets are dropped, a leading `00` becomes `+`, and a ten-digit Nepali mobile number (96, 97 or 98...) gets `+977`. They are still stored in E.164.
+
 ## 12. Examples
 
 ```bash
