@@ -5,6 +5,7 @@ import { Alert, Button, Card, Modal, Spinner, StatusBadge, TextArea } from '@/co
 import { api, ApiError } from '@/lib/api';
 import { channelLabel, formatDateTime } from '@/lib/format';
 import { useFormErrors } from '@/lib/useFormErrors';
+import { AffiliateAccountCard, type AccountSummary } from './AffiliateAccountCard';
 import { AffiliateEarningsCard } from './AffiliateEarningsCard';
 
 interface Detail {
@@ -29,6 +30,7 @@ interface Detail {
     notes: { author: string | null; body: string; at: string }[];
     terms_accepted: { version: string; accepted_at: string }[];
     possible_duplicates: { id: string; display_name: string; status: string; matched_on: string[] }[];
+    account: AccountSummary | null;
     can: { review: boolean; suspend: boolean };
 }
 
@@ -122,6 +124,8 @@ export default function AffiliateDetailPage() {
                     </dl>
                 </Card>
             </div>
+
+            <AffiliateAccountCard detail={detail} canManage={detail.can.suspend} onChange={setDetail} />
 
             <AffiliateEarningsCard affiliateId={detail.id} plan={detail.commission_plan} />
 

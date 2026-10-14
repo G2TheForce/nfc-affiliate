@@ -174,6 +174,17 @@ All four need a reason (at least 5 characters) that is shown to the member and e
 
 Every change is recorded under **Status history** with who did it and when, and in the audit log.
 
+### 2.2a Sign-in and password (Super Administrator, Affiliate Manager)
+
+The **Sign-in and password** card on an affiliate's page shows whether they can sign in, whether their email is verified, when they last signed in and on how many devices. Nobody on staff can see or type an affiliate's password; instead:
+
+- **Email password reset link** sends the standard reset email, so the member chooses a new password themselves. One per minute per account.
+- **Resend verification email** appears while the email address is unverified.
+- **Sign out everywhere** ends every browser session and app token, for example after a lost phone.
+- **Block sign-in** signs them out everywhere and stops them signing in, with a reason kept in the audit log. **Allow sign-in** undoes it. This is separate from Suspend: blocking sign-in does not change the membership or balance, and a suspended member can still sign in to see their history.
+
+People who are also staff are managed on the Staff screen instead. Every action is in the audit log.
+
 ### 2.3 Internal notes
 
 On the profile, under **Internal notes**, type in **Add a note** and press **Add note**. Only staff see notes. Notes cannot be edited or deleted.

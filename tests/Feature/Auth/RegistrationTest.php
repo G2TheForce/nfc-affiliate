@@ -53,7 +53,7 @@ class RegistrationTest extends TestCase
     {
         $this->postJson('/api/v1/auth/register', $this->payload([
             'email' => 'not-an-email',
-            'phone' => '9812345678',
+            'phone' => '12345',
             'password' => 'short',
             'accept_privacy_notice' => false,
         ]))

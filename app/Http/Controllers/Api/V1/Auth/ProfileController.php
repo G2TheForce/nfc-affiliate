@@ -6,6 +6,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Notifications\Auth\PasswordChanged;
+use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,10 +22,13 @@ class ProfileController extends Controller
 
     public function update(Request $request): UserResource
     {
+        if ($request->filled('phone')) {
+            $request->merge(['phone' => PhoneNumber::normalize($request->input('phone'))]);
+        }
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'min:2', 'max:120'],
             'phone' => ['sometimes', 'nullable', 'string', 'regex:/^\+[1-9]\d{7,14}$/'],
-        ], ['phone.regex' => 'Enter the phone number with country code, for example +9779812345678.']);
+        ], ['phone.regex' => 'Enter a mobile number such as 9812345678, or include the country code, for example +9779812345678.']);
 
         $user = $request->user();
         $user->fill($data);

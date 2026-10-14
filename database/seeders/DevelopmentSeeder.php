@@ -70,6 +70,18 @@ class DevelopmentSeeder extends Seeder
             }
         }
 
+        // affiliate@dev.invalid holds the affiliate role, so it needs an approved
+        // membership too, or every affiliate page tells it to wait for approval.
+        $member = User::where('email', 'affiliate@dev.invalid')->first();
+        if ($member && ! $member->affiliateProfile) {
+            $member->forceFill(['phone' => $member->phone ?? '+9779800000001'])->save();
+            $member->syncRoles([Role::Customer->value, Role::Affiliate->value]);
+            $profile = AffiliateProfile::factory()->forUser($member)->status(AffiliateStatus::Approved)->create(['display_name' => '[DEV] Affiliate Member']);
+            $profile->statusHistory()->create(['to_status' => AffiliateStatus::Pending, 'actor_id' => $member->id]);
+            $profile->statusHistory()->create(['from_status' => AffiliateStatus::Pending, 'to_status' => AffiliateStatus::Approved]);
+            $profile->termsAcceptances()->create(['terms_version_id' => $terms->id, 'accepted_at' => now()]);
+        }
+
         // Sample catalog so the store journey can be tried locally.
         $cards = ProductCategory::firstOrCreate(['slug' => 'nfc-cards'], ['name' => 'NFC business cards']);
         $stands = ProductCategory::firstOrCreate(['slug' => 'review-stands'], ['name' => 'Review stands']);

@@ -21,6 +21,18 @@ class CheckoutAttributionTest extends TestCase
     use ReferralTestHelpers;
     use RefreshDatabase;
 
+    public function test_local_mobile_number_is_stored_with_country_code_and_still_blocks_self_referral(): void
+    {
+        $affiliate = $this->affiliate(user: ['phone' => '+9779812345678']);
+        $click = $this->clickCookie($this->visit('/ref/'.$affiliate->referral_code));
+
+        $this->placeOrder($this->product(), $click, ['customer_phone' => '981-234 5678'])->assertCreated();
+
+        $order = Order::sole();
+        $this->assertSame('+9779812345678', $order->customer_phone);
+        $this->assertSame('self_referral', $order->attribution_block_reason);
+    }
+
     public function test_order_after_a_referral_click_is_attributed_to_that_affiliate(): void
     {
         $affiliate = $this->affiliate();
