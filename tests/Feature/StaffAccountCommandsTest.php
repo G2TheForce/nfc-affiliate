@@ -100,4 +100,16 @@ class StaffAccountCommandsTest extends TestCase
         $this->artisan('affiliate:set-user-status', ['email' => 'owner@store.test', 'status' => 'disabled', '--reason' => 'Owner change'])
             ->assertSuccessful();
     }
+
+    public function test_verify_email_command_marks_the_address_verified_and_audits_it(): void
+    {
+        $user = User::factory()->create(['email' => 'ram@example.com', 'email_verified_at' => null]);
+
+        $this->artisan('affiliate:verify-email', ['email' => ' Ram@Example.com '])->assertSuccessful();
+
+        $this->assertTrue($user->refresh()->hasVerifiedEmail());
+        $this->assertDatabaseHas('audit_logs', ['action' => 'auth.email_verified', 'actor_id' => null]);
+        $this->artisan('affiliate:verify-email', ['email' => 'ram@example.com'])->expectsOutputToContain('already verified')->assertSuccessful();
+        $this->artisan('affiliate:verify-email', ['email' => 'nobody@example.com'])->assertFailed();
+    }
 }

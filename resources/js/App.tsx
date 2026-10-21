@@ -50,7 +50,7 @@ const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 const TapProfilePage = lazy(() => import('@/pages/public/TapProfilePage'));
 const TapCardPage = lazy(() => import('@/pages/account/TapCardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
-import { GuestOnly, RequireAuth } from '@/routes/guards';
+import { GuestOnly, RequireAffiliate, RequireAuth } from '@/routes/guards';
 import { Spinner } from '@/components/ui';
 
 export default function App() {
@@ -157,14 +157,16 @@ export default function App() {
                     <Route index element={<AccountHomePage />} />
                     <Route path="orders" element={<CustomerOrdersPage />} />
                     <Route path="affiliate" element={<AffiliatePage />} />
-                    <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="card" element={<TapCardPage />} />
-                    <Route path="affiliate/links" element={<ReferralLinksPage />} />
-                    <Route path="affiliate/marketing" element={<MarketingPage />} />
-                    <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
-                    <Route path="earnings" element={<EarningsPage />} />
-                    <Route path="payouts" element={<PayoutsPage />} />
+                    <Route element={<RequireAffiliate />}>
+                        <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
+                        <Route path="affiliate/links" element={<ReferralLinksPage />} />
+                        <Route path="affiliate/marketing" element={<MarketingPage />} />
+                        <Route path="affiliate/referrals" element={<ReferralStatsPage />} />
+                        <Route path="earnings" element={<EarningsPage />} />
+                        <Route path="payouts" element={<PayoutsPage />} />
+                    </Route>
                     <Route path="notifications" element={<NotificationsPage />} />
                 </Route>
 

@@ -89,4 +89,4 @@ $env:DB_CONNECTION="mysql"; $env:DB_DATABASE="nfc_affiliate_test"; php artisan t
 
 - **`could not find driver`**: enable `extension=pdo_mysql` in `php.ini`.
 - **419 or CSRF errors in the browser**: open the app on the same host and port listed in `SANCTUM_STATEFUL_DOMAINS` (for example `localhost:8000`, not `127.0.0.1:8000`, unless you add it).
-- **No verification email**: check that `php artisan queue:work` is running, and look in `storage/logs/` when `MAIL_MAILER=log`.
+- **No verification email** (stuck on "Verify your email"): check that `php artisan queue:work` is running, and look in `storage/logs/` when `MAIL_MAILER=log`. To skip it for a test account: `php artisan affiliate:verify-email person@example.com`, then click **I've verified my email**.

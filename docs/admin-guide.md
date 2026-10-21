@@ -27,6 +27,7 @@ Accounts for the other staff roles are created the same way, on the server:
 ```bash
 php artisan affiliate:create-staff --role=affiliate_manager    # or finance_manager, support
 php artisan affiliate:set-user-status person@example.com disabled --reason="Left the company"
+php artisan affiliate:verify-email person@example.com    # when the verification email cannot arrive
 ```
 
 Disabling signs the person out on every device. Once the first Super Administrator can sign in, it is easier to add, disable and re-enable staff on the **Staff** screen (1.4). The commands still work, for example if nobody can sign in. Staff accounts can never join the affiliate programme.
