@@ -1,0 +1,85 @@
+name: Mobile APK
+
+# Builds an installable test APK (debug-signed) and publishes it as the
+# rolling "mobile-test" pre-release, so the latest build is always at
+# Releases > mobile-test. It also stays in the run's Artifacts.
+#
+# The app's server address can be changed on the phone (Account > Server
+# address); the input below only sets the address it starts with.
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: Server the app starts with (can be changed in the app)
+        required: true
+        default: http://10.0.2.2:8000
+  push:
+    branches: [main]
+    paths:
+      - mobile/**
+      - .github/workflows/mobile-apk.yml
+  pull_request:
+    paths:
+      - mobile/**
+      - .github/workflows/mobile-apk.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-apk-release
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build APK
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url || 'http://10.0.2.2:8000' }}
+        # Test builds allow plain http so they can reach a PC on the Wi-Fi.
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --android-project-arg=cleartext=true
+          cp build/app/outputs/flutter-apk/app-release.apk nfc-card-store.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfc-card-store-apk
+          path: mobile/nfc-card-store.apk
+          retention-days: 14
+      - name: Publish the mobile-test pre-release
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ github.event.pull_request.head.sha || github.sha }}
+          SOURCE: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          API_BASE_URL: ${{ inputs.api_base_url || 'http://10.0.2.2:8000' }}
+        run: |
+          gh release delete mobile-test --yes --cleanup-tag 2>/dev/null || true
+          git push origin ":refs/tags/mobile-test" 2>/dev/null || true
+          gh release create mobile-test nfc-card-store.apk \
+            --prerelease \
+            --target "$TARGET" \
+            --title "Mobile test APK" \
+            --notes "Test build of the Android app from \`$SOURCE\` (${TARGET:0:7}), built $(date -u '+%Y-%m-%d %H:%M UTC').
+
+          Install: download nfc-card-store.apk on the phone, open it and allow installing from this source. It is signed with a debug key, so it is for testing only.
+
+          It starts with the server $API_BASE_URL. To use your PC's backend from a phone on the same Wi-Fi, run \`php artisan serve --host=0.0.0.0 --port=8000\`, find the PC's IPv4 address with \`ipconfig\`, and enter it in the app under Account > Server address (for example http://192.168.1.20:8000)."
