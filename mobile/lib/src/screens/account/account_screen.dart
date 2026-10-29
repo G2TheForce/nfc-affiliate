@@ -9,6 +9,7 @@ import '../auth/register_screen.dart';
 import '../shop/orders_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'server_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -123,11 +124,14 @@ class AccountScreen extends StatelessWidget {
               },
             ),
           ],
-          const SizedBox(height: 24),
-          Text(
-            '${AppConfig.appName} · ${AppConfig.apiBaseUrl}',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall,
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.dns_outlined),
+            title: const Text('Server address'),
+            subtitle: Text(AppConfig.apiBaseUrl),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ServerScreen())),
           ),
         ],
       ),

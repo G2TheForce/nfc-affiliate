@@ -52,9 +52,11 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild the tabs when the signed-in person changes, so no screen keeps
-    // another account's data.
-    final userId = context.select<Session, String?>((s) => s.user?.id);
+    // Rebuild the tabs when the signed-in person or the server changes, so
+    // no screen keeps another account's (or server's) data.
+    final (userId, server) = context.select<Session, (String?, String)>(
+      (s) => (s.user?.id, AppConfig.apiBaseUrl),
+    );
     final signedIn = userId != null;
 
     final tabs = <(NavigationDestination, Widget)>[
@@ -103,7 +105,7 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       body: KeyedSubtree(
-        key: ValueKey(userId),
+        key: ValueKey((userId, server)),
         child: IndexedStack(
           index: index,
           children: [for (final t in tabs) t.$2],

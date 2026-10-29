@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nfc_affiliate_app/src/config.dart';
 import 'package:nfc_affiliate_app/src/screens/shop/payment_screen.dart';
@@ -41,5 +42,32 @@ void main() {
       AppConfig.resolveUrl('https://shop.example/p/asha'),
       'https://shop.example/p/asha',
     );
+  });
+
+  test('typed server addresses are normalised', () {
+    expect(
+      AppConfig.normaliseBaseUrl(' 192.168.1.20:8000 '),
+      'http://192.168.1.20:8000',
+    );
+    expect(
+      AppConfig.normaliseBaseUrl('https://shop.example/'),
+      'https://shop.example',
+    );
+    expect(AppConfig.normaliseBaseUrl('ftp://x'), isNull);
+    expect(AppConfig.normaliseBaseUrl(''), isNull);
+  });
+
+  test('a saved server address replaces the built-in one', () async {
+    SharedPreferences.setMockInitialValues({});
+    await AppConfig.setApiBaseUrl('http://192.168.1.20:8000');
+    expect(AppConfig.apiRoot, 'http://192.168.1.20:8000/api/v1');
+    expect(
+      AppConfig.resolveUrl('http://localhost:8000/p/asha'),
+      'http://192.168.1.20:8000/p/asha',
+    );
+    await AppConfig.load();
+    expect(AppConfig.apiBaseUrl, 'http://192.168.1.20:8000');
+    await AppConfig.setApiBaseUrl(null);
+    expect(AppConfig.apiBaseUrl, AppConfig.defaultApiBaseUrl);
   });
 }

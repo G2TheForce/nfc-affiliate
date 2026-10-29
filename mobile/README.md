@@ -50,25 +50,27 @@ The phone must be on the same Wi-Fi as the PC.
    flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000
    ```
 
-### Without installing Flutter: download an APK
+### Without installing Flutter: download the test APK
 
-GitHub builds an installable APK for you:
+GitHub builds an installable APK on every change to `mobile/` and publishes it as the **mobile-test** pre-release:
 
-1. On GitHub, open **Actions > Mobile APK > Run workflow**.
-2. Enter the server address the phone should use (your PC's LAN address as above, or the live `https://` site), then run it.
-3. When it finishes, download **nfc-card-store-apk** from the run's Artifacts, unzip it, copy `app-release.apk` to the phone and open it. Android asks you to allow installing from that source.
+1. On the phone, open <https://github.com/G2TheForce/nfc-affiliate/releases/tag/mobile-test> (signed in to GitHub, since the repo is private) and download `nfc-card-store.apk`.
+2. Open it. Android asks you to allow installing from that source.
+3. In the app, go to **Account > Server address**, enter your PC's address from the steps above (for example `http://192.168.1.20:8000`), tap **Test connection**, then **Save**.
 
-That APK is signed with a debug key. It is fine for testing, but not for the Play Store (see below).
+To build one by hand, open **Actions > Mobile APK > Run workflow**. The address you enter there is only the one the app starts with.
+
+That APK is signed with a debug key and allows plain `http`. It is fine for testing, but not for the Play Store (see below).
 
 ## Settings
 
 | `--dart-define` | Default | Meaning |
 |---|---|---|
-| `API_BASE_URL` | `http://10.0.2.2:8000` | The backend, without `/api/v1` |
+| `API_BASE_URL` | `http://10.0.2.2:8000` | The backend the app starts with, without `/api/v1`. People can change it under Account > Server address, which also signs them out and empties the cart. |
 
 The server builds links (referral links, tap profile links, product photos) from its `APP_URL`. Locally that is `http://localhost:8000`, which on a phone means the phone itself, so the app rewrites `localhost` links to the `API_BASE_URL` host. In production the links are already correct.
 
-Plain `http` is allowed in debug builds only. A release build refuses it unless it is built with `--android-project-arg=cleartext=true`, which the APK workflow does automatically for `http://` addresses. Production must use `https`.
+Plain `http` is allowed in debug builds only. A release build refuses it unless it is built with `--android-project-arg=cleartext=true`, which the test APK workflow always does. Production must use `https`.
 
 ## Develop
 

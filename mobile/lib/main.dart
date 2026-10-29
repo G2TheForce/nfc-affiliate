@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import 'src/api/api_client.dart';
 import 'src/api/store_api.dart';
 import 'src/app.dart';
+import 'src/config.dart';
 import 'src/state/cart.dart';
 import 'src/state/session.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.load();
 
   final api = Api(ApiClient());
   final session = Session(api, SecureTokenStore());

@@ -108,6 +108,13 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Drops the token without telling the server, for when the server
+  /// address changes and the old one may be unreachable.
+  Future<void> forget() async {
+    await _forget();
+    notifyListeners();
+  }
+
   Future<void> _signedIn(String token, User user) async {
     api.client.token = token;
     await _tokens.write(token);

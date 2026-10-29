@@ -42,10 +42,13 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient({http.Client? httpClient, String? root})
     : _http = httpClient ?? http.Client(),
-      _root = root ?? AppConfig.apiRoot;
+      _fixedRoot = root;
 
   final http.Client _http;
-  final String _root;
+  final String? _fixedRoot;
+
+  /// Follows the server address set in the app unless a root was given.
+  String get _root => _fixedRoot ?? AppConfig.apiRoot;
   String? token;
 
   /// Called when a signed-in request gets 401 (token expired or revoked).
