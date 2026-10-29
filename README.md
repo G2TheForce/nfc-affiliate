@@ -26,6 +26,7 @@ Each phase report in `docs/` lists what was built and the test results; [CHANGEL
 - spatie/laravel-permission for roles and permissions
 - React 19 + TypeScript + React Router 7 + Tailwind CSS 4, built with Vite, served by Laravel
 - PHPUnit for tests
+- Flutter mobile app for Android and iOS in [`mobile/`](mobile/README.md) (shop, affiliate area, tap card)
 
 ## Quick start
 
@@ -82,6 +83,7 @@ Online payments are off until switched on in `.env`:
 - [Permissions matrix](docs/permissions-matrix.md)
 - [API (OpenAPI 3.1)](docs/api/openapi.yaml)
 - [Local setup on Windows](docs/local-setup-windows.md)
+- [Mobile app](mobile/README.md): what it covers, running it on an emulator or phone, and downloading a test APK
 - [API guide](docs/api-guide.md) and [database schema with ER diagram](docs/database-schema.md)
 - Guides for people: [administrator guide](docs/admin-guide.md), [affiliate guide](docs/affiliate-guide.md)
 - Running it: [deployment](docs/deployment.md) (Linux and Docker Compose), [migrations](docs/migrations.md), [operations runbook](docs/operations.md), [production configuration](docs/production-config.md), [backup and restore](docs/backup-and-restore.md)

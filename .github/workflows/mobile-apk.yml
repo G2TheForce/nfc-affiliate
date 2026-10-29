@@ -1,0 +1,51 @@
+name: Mobile APK
+
+# Builds an installable Android APK. Run it from the Actions tab
+# ("Run workflow") and download the APK from the run's Artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: Server the app talks to (a real phone needs your PC's LAN address or the live https site)
+        required: true
+        default: http://192.168.1.10:8000
+  pull_request:
+    paths:
+      - mobile/**
+      - .github/workflows/mobile-apk.yml
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build APK
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url || 'http://10.0.2.2:8000' }}
+        run: |
+          CLEARTEXT=false
+          case "$API_BASE_URL" in http://*) CLEARTEXT=true ;; esac
+          flutter build apk --release \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --android-project-arg=cleartext=$CLEARTEXT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfc-card-store-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
